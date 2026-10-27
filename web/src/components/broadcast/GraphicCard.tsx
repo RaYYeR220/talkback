@@ -1,13 +1,15 @@
-import { num, pct } from "@/lib/format";
+import { num } from "@/lib/format";
 import { storyBadge } from "@/lib/selectors";
 import type { AiredItem, TimedCue } from "@/lib/stream";
 import { TERRITORY } from "@/lib/territories";
-import type { Output, Scalar, Story } from "@/lib/types";
+import type { Fact, Output, Scalar, Story } from "@/lib/types";
 import styles from "./GraphicCard.module.css";
 
 // The web overlay for an aired cue. It mirrors the OGraf packages (stat card, story card,
-// lower third, counterfactual card, table swing, player tag): the cleared, localised line is
-// always the text; cue.data only supplies labels and numbers.
+// lower third, counterfactual card, table swing, player tag). The cleared, localised line is
+// always the text. Numbers and labels come only from what Clearance checked: the cited facts,
+// the Lab's experiments and the gallery's own template data (speed tags) - never from anything
+// a model wrote outside the line.
 
 const KICKER: Record<string, string> = {
   stat_card: "Stat",
@@ -21,6 +23,18 @@ const KICKER: Record<string, string> = {
 function pick(data: Record<string, Scalar>, ...keys: string[]): Scalar | undefined {
   for (const k of keys) if (data[k] !== undefined && data[k] !== null && data[k] !== "") return data[k];
   return undefined;
+}
+
+const SPOKEN_DECIMALS: Record<string, number> = { count: 0, km: 1, "km/h": 1, m: 1 };
+
+/** A cited fact at broadcast precision, as the line itself is allowed to say it. */
+function spoken(f: Fact): string {
+  return num(f.value, SPOKEN_DECIMALS[f.unit] ?? 2).replace(/\.0+$|(\.\d*?)0+$/, "$1");
+}
+
+function metricLabel(metric: string): string {
+  const name = metric.split(".").pop() ?? metric;
+  return name.replace(/_kmh$/, "").replace(/_km$/, "").replace(/_/g, " ").replace(/^xg$/, "xG");
 }
 
 function asNumber(x: Scalar | undefined): number | undefined {
@@ -71,8 +85,8 @@ export function GraphicCard({
     }
     case "counterfactual_card": {
       const exp = cue?.experiments?.[0];
-      const asPlayed = asNumber(pick(data, "asPlayed", "baseline", "actual")) ?? exp?.baseline;
-      const ifNot = asNumber(pick(data, "ifNot", "counterfactual", "cf")) ?? exp?.counterfactual;
+      const asPlayed = exp?.baseline;
+      const ifNot = exp?.counterfactual;
       const max = Math.max(asPlayed ?? 0, ifNot ?? 0, 1e-9);
       body = (
         <>
@@ -92,24 +106,11 @@ export function GraphicCard({
       break;
     }
     case "table_swing": {
-      const club = pick(data, "club", "team", "subject");
-      const before = asNumber(pick(data, "before"));
-      const after = asNumber(pick(data, "after"));
-      body = (
-        <>
-          {club ? <p className={styles.name}>{String(club)}</p> : null}
-          {before !== undefined && after !== undefined ? (
-            <p className={`${styles.metric} mono`}>
-              {pct(before)} → {pct(after)}
-            </p>
-          ) : null}
-          {text}
-        </>
-      );
+      body = text;
       break;
     }
     case "story_card": {
-      const badge = pick(data, "kind", "badge", "storyline_kind") ?? (story ? storyBadge(story.kind) : undefined);
+      const badge = story ? storyBadge(story.kind) : undefined;
       body = (
         <>
           {badge ? <span className={styles.badge}>{String(badge).replace(/_/g, " ")}</span> : null}
@@ -119,8 +120,9 @@ export function GraphicCard({
       break;
     }
     case "stat_card": {
-      const label = pick(data, "label", "metric", "stat");
-      const value = pick(data, "value");
+      const fact = cue?.evidence?.[0];
+      const label = fact ? metricLabel(fact.metric) : undefined;
+      const value = fact ? spoken(fact) : undefined;
       body = (
         <>
           {label !== undefined && value !== undefined ? (

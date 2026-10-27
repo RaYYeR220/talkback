@@ -33,7 +33,7 @@ export interface Fixture {
 
 export interface RunData {
   id: string;
-  status: "started" | "finished";
+  status: "started" | "finished" | "generating" | "failed";
   speed?: number;
   fixtures?: Fixture[];
   mode?: Mode;

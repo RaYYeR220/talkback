@@ -50,20 +50,18 @@ export function delayFor(output: Output): number {
   return TERRITORY[output].delayMs;
 }
 
-/** Lines that have aired on an output, oldest first, as seen at match time `t`. World = one per cue, source text. */
+/**
+ * Lines that have aired on an output, oldest first, as seen at match time `t`. The world feed is the international
+ * English output, so it carries exactly what cleared for the UK: a line killed in English never reaches it because
+ * a translation of it aired somewhere else.
+ */
 export function airedOn(s: GalleryState, output: Output, t = Infinity, matchId?: string): AiredItem[] {
   const delay = delayFor(output);
   const visible = (a: AiredItem) => a.sim_t + delay <= t && (!matchId || a.match_id === matchId);
   if (output !== "world") return s.aired.filter((a) => a.territory === output && visible(a));
-  const seen = new Set<string>();
-  const out: AiredItem[] = [];
-  for (const a of s.aired) {
-    if (!visible(a) || seen.has(a.cue_id)) continue;
-    seen.add(a.cue_id);
-    const cue = s.cues[a.cue_id];
-    out.push({ ...a, id: `${a.cue_id}:world`, text: cue?.text ?? a.text });
-  }
-  return out;
+  return s.aired
+    .filter((a) => a.territory === "uk" && visible(a))
+    .map((a) => ({ ...a, id: `${a.cue_id}:world` }));
 }
 
 export interface Recall {

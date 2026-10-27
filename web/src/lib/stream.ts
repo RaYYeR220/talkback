@@ -244,6 +244,9 @@ function apply(input: GalleryState, msg: Message, now: number): GalleryState {
       if (s.mode === "live") s.runLabel = d.id;
       else if (!s.runLabel?.startsWith("replay")) s.runLabel = "replay";
       setFixtures(s, d.fixtures);
+    } else if (d.status === "generating") {
+      // a cloud run is being generated; the matchday starts with its own "started"
+      s.runLabel = d.id;
     } else if (msg.wall >= s.runWall) {
       s.finished = true;
       if (d.stats) s.stats = d.stats;
