@@ -42,7 +42,7 @@ INSTRUCTIONS = (
     "3 absolute (dominant, relentless, always). Strong words need lots of evidence; prefer 0-1 early in games.\n"
     "5. Never mention betting, odds or gambling.\n"
     "Answer only with JSON: {\"cues\": [{\"audience\": \"analyst|casual|presenter\", \"template\": \"stat_card\", "
-    "\"text\": \"...\", \"data\": {}, \"claims\": [{\"span\": \"...\", \"kind\": \"numeric|comparative|causal|"
+    "\"text\": \"...\", \"claims\": [{\"span\": \"...\", \"kind\": \"numeric|comparative|causal|"
     "storyline|descriptive\", \"subject\": \"...\", \"refs\": [\"...\"], \"value\": 0.0, \"strength\": 0}]}]}"
 )
 
@@ -60,6 +60,8 @@ class _Draft(BaseModel):
     audience: Audience
     template: str = "stat_card"
     text: str = Field(min_length=3, max_length=400)
+    # Accepted so a model that sends it still parses, but never used: graphics are built from cleared text and
+    # cited facts only.
     data: dict[str, str | float | int | None] = Field(default_factory=dict)
     claims: list[_Claim] = Field(default_factory=list)
 
@@ -143,7 +145,7 @@ async def revise_cue(agent: Agent, cue: Cue, reasons: list[str], moment: Moment,
         return None
     d = answer.cues[0]
     return cue.model_copy(update={"id": cue.id + "-r", "text": d.text.strip(), "claims": _normalise(d.claims, stories),
-                                  "data": d.data, "verdicts": {}, "universal_reasons": []})
+                                  "data": {}, "verdicts": {}, "universal_reasons": []})
 
 
 async def draft_cues(agent: Agent, moment: Moment, facts: list[Fact], lab: LabResult | None,
@@ -159,7 +161,7 @@ async def draft_cues(agent: Agent, moment: Moment, facts: list[Fact], lab: LabRe
         cues.append(Cue(
             id=f"Q-{moment.id}-{d.audience}-{n}", match_id=moment.match_id, moment_id=moment.id,
             audience=d.audience, text=d.text.strip(), lang="en",
-            claims=_normalise(d.claims, stories), template=template, data=d.data,
+            claims=_normalise(d.claims, stories), template=template, data={},
             valid_state_hash=state_hash,
             max_age_ms=max_age(moment.kind, d.audience, pre_match=moment.detail.get("pre_match") == 1),
             created_t=now_t))
