@@ -105,7 +105,7 @@ class MatchdayRunner:
         self.events_by_id: dict[str, Event] = {}
         from talkback.hosted.runstore import snapshot_store
 
-        self.lab = LabBackend(snapshot_store(self.run_dir, run_id), self.world, self.events_by_id.get,
+        self.lab = LabBackend(snapshot_store(self.run_dir, self.run_dir.name), self.world, self.events_by_id.get,
                               pool=lab_pool, n=lab_n, horizon_s=15)
         self.desks = [TerritoryDesk(t, client_for("fast")) for t in TERRITORIES]
         self.spotter = Spotter(_spotter_agent(client_for("fast")))
@@ -126,7 +126,7 @@ class MatchdayRunner:
         self.deps = MomentDeps(world=self.world, boards={f: m.board for f, m in self.matches.items()},
                                lab=self.lab, gate=gate, desks=self.desks, pack_ctx=self.pack_ctx,
                                state_now=lambda f: self.matches[f].state(), client=client_for,
-                               remote=RemoteAgents.from_env())
+                               remote=RemoteAgents.from_env(), run_name=self.run_dir.name)
 
     # ------------------------------------------------------------- contexts
     def pack_ctx(self, match_id: str) -> PackContext:

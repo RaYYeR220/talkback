@@ -29,6 +29,7 @@ from talkback.gallery.agents.writer import WriterFailure, draft_cues, make_write
 from talkback.gallery.spotter import Moment
 from talkback.gallery.storyboard import StoryBoard
 from talkback.gallery.world import World
+from talkback.hosted.runs import with_run
 from talkback.schemas.models import Cue, Fact, MatchState, Storyline, Verdict
 
 LAB_MOMENTS = {"goal", "big_chance", "big_save"}
@@ -105,6 +106,7 @@ class MomentDeps:
     state_now: Callable[[str], MatchState]
     client: Callable[[str], object]          # tier -> chat client
     remote: object | None = None             # RemoteAgents: Archivist and Lab over A2A
+    run_name: str | None = None              # the run the remote agents load (storage prefix)
 
 
 def _ms(t0: float) -> int:
@@ -130,7 +132,8 @@ class ArchivistExec(Executor):
         note = ""
         if remote is not None and remote.enabled("archivist"):
             try:
-                text = await remote.ask("archivist", moment_prompt(job.moment, board, self.deps.world))
+                text = await remote.ask("archivist", with_run(self.deps.run_name,
+                                                              moment_prompt(job.moment, board, self.deps.world)))
                 await ctx.send_message(Stories(job, stories_from_answer(text, board), "a2a", _ms(t0)))
                 return
             except Exception as exc:  # noqa: BLE001 - fall back to the in-process archivist
@@ -160,16 +163,18 @@ class LabExec(Executor):
         prompt = (f"Moment {m.kind} at {m.t // 60_000}' in {m.match_id} (moment id {m.id}). The shot event is "
                   f"{job.anchor_event_id}. Menu: cancel_shot (what if he had not shot), complete_intercepted_pass.")
         remote = self.deps.remote
+        note = ""
         if remote is not None and remote.enabled("lab"):
             try:
-                sealed = LabResult.model_validate_json(await remote.ask("lab", prompt))
+                sealed = LabResult.model_validate_json(await remote.ask("lab", with_run(self.deps.run_name, prompt)))
                 ok = any(x.metric == "threat" and (x.ci95[0] > 0 or x.ci95[1] < 0) for x in sealed.experiments)
                 sealed = sealed.model_copy(update={"supported": ok, "status": "a2a"})
                 if sealed.experiments:
                     await ctx.send_message(LabOut(job, sealed, "a2a", _ms(t0)))
                     return
-            except Exception:  # noqa: BLE001 - fall through to the in-process Lab
-                pass
+                note = "degraded: a2a ran no experiment, ran in-process"
+            except Exception as exc:  # noqa: BLE001 - fall through to the in-process Lab
+                note = f"degraded: a2a {type(exc).__name__}, ran in-process"
         try:
             agent = make_lab(self.deps.client("strong"), backend, m.id, m.match_id)
             result = finalize((await agent.run(prompt)).text, backend)
@@ -180,7 +185,7 @@ class LabExec(Executor):
                 supported = any(x.metric == "threat" and (x.ci95[0] > 0 or x.ci95[1] < 0) for x in xs)
                 result = LabResult(experiments=xs, conclusion="" if supported else "no clear effect",
                                    supported=supported, status="default")
-            await ctx.send_message(LabOut(job, result, result.status, _ms(t0)))
+            await ctx.send_message(LabOut(job, result, note or result.status, _ms(t0)))
         except Exception as exc:  # noqa: BLE001
             await ctx.send_message(LabOut(job, empty.model_copy(update={"status": "degraded"}),
                                           f"degraded: {type(exc).__name__}", _ms(t0)))

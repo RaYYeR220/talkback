@@ -3,7 +3,8 @@
 The model picks and runs experiments with its tool; a middleware then seals
 the answer: the reply carries the experiments exactly as the simulator
 returned them and `supported` recomputed from their intervals, so no number
-ever passes through the model's retelling.
+ever passes through the model's retelling. Experiments run on the run the
+prompt names (talkback.hosted.runs).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pydantic import Field
 from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, finalize
 from talkback.gallery.llm import make_client
 from talkback.gallery.world import World
+from talkback.hosted.runs import RunCache, RunScope, current, default_run, run_of
 from talkback.hosted.runstore import run_dir, snapshot_store
 from talkback.schemas.models import Event
 from talkback.sim.rollout import is_supported
@@ -27,7 +29,7 @@ REMOTE_INSTRUCTIONS = INSTRUCTIONS + (
 )
 
 
-def remote_tools(backend: LabBackend) -> list:
+def remote_tools(backends: RunCache[LabBackend]) -> list:
     @tool(description="Replay a moment in the simulator with one change and measure the paired effect.")
     async def run_experiment(
         match_id: Annotated[str, Field(description="fixture id, e.g. MD12-F03")],
@@ -35,6 +37,7 @@ def remote_tools(backend: LabBackend) -> list:
         event_id: Annotated[str, Field(description="id of the event to change (a failed pass or a shot)")],
         experiment: Annotated[ExperimentKind, Field(description="which change to make")],
     ) -> dict:
+        backend = backends.get(current())
         try:
             xs = await asyncio.to_thread(backend.run, moment_id, match_id, event_id, experiment)
         except ValueError as exc:
@@ -46,26 +49,31 @@ def remote_tools(backend: LabBackend) -> list:
 
 
 class SealResult(AgentMiddleware):
-    def __init__(self, backend: LabBackend):
-        self.backend = backend
+    def __init__(self, backends: RunCache[LabBackend]):
+        self.backends = backends
 
     async def process(self, context: AgentContext, call_next) -> None:
         await call_next()
         if context.stream or context.result is None:
             return
-        sealed = finalize(context.result.text, self.backend)
+        sealed = finalize(context.result.text, self.backends.get(run_of(context.messages)))
         context.result = AgentResponse(messages=[Message(role="assistant", contents=[sealed.model_dump_json()])])
 
 
-def build_agent() -> Agent:
-    root = run_dir()
+def load_backend(run_id: str) -> LabBackend:
+    root = run_dir(run_id)
     world = World.load(root / "world.json")
     events: dict[str, Event] = {}
     with open(root / "events.jsonl", encoding="utf-8") as fh:
         for line in fh:
             e = Event.model_validate(json.loads(line))
             events[e.id] = e
-    backend = LabBackend(snapshot_store(root), world, events.get, n=120, horizon_s=15)
+    return LabBackend(snapshot_store(root, run_id), world, events.get, n=120, horizon_s=15)
+
+
+def build_agent() -> Agent:
+    backends = RunCache(load_backend)
+    backends.get(default_run())  # fail at start-up, not on the first moment, if the default run is missing
     return Agent(client=make_client("strong"), instructions=REMOTE_INSTRUCTIONS, name="lab",
-                 description="Counterfactual experiments on match moments.", tools=remote_tools(backend),
-                 middleware=[SealResult(backend)], default_options={"store": False})
+                 description="Counterfactual experiments on match moments.", tools=remote_tools(backends),
+                 middleware=[RunScope(warm=backends.get), SealResult(backends)], default_options={"store": False})

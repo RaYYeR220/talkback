@@ -52,3 +52,13 @@ def test_live_speed_is_bounded(client, speed):
     c, svc = client
     assert c.post("/api/live", json={"speed": speed}).status_code == 422
     assert svc.gallery.mode != "live"
+
+
+def test_generator_can_upload_an_existing_run_without_publishing(tmp_path, monkeypatch):
+    from talkback.service import generator
+
+    uploaded, published = [], []
+    monkeypatch.setattr(generator, "upload_run", lambda d, r: uploaded.append((d, r)) or 3)
+    monkeypatch.setattr(generator, "publish", lambda *a: published.append(a))
+    generator.main(["--upload", str(tmp_path), "--run-id", "md-2026"])
+    assert uploaded == [(tmp_path, "md-2026")] and published == []

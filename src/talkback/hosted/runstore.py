@@ -13,12 +13,19 @@ from pathlib import Path
 from talkback.gallery.snapshots import SnapshotStore
 
 
-def run_dir() -> Path:
+def run_dir(run_id: str | None = None) -> Path:
+    """The run's directory: TALKBACK_RUN_DIR or a sibling of it, else downloaded from the storage account."""
+    from talkback.hosted.runs import RUN_ID
+
+    if run_id is not None and not RUN_ID.fullmatch(run_id):
+        raise ValueError(f"not a run id: {run_id!r}")
     local = Path(os.environ.get("TALKBACK_RUN_DIR", "runs/md-2026"))
+    if run_id is not None and run_id != local.name:
+        local = local.parent / run_id
     if (local / "world.json").exists():
         return local
     account = os.environ.get("STORAGE_ACCOUNT_URL")
-    prefix = os.environ.get("TALKBACK_RUN_ID", "md-2026")
+    prefix = run_id or os.environ.get("TALKBACK_RUN_ID", "md-2026")
     if not account:
         raise RuntimeError("no run directory and no STORAGE_ACCOUNT_URL to fetch one from")
     target = Path(os.environ.get("TMPDIR", "/tmp")) / "talkback-run" / prefix
@@ -65,6 +72,8 @@ class BlobSnapshotStore(SnapshotStore):
 
 
 def snapshot_store(root: Path, run_id: str | None = None) -> SnapshotStore:
-    if (root / "snapshots").exists() or not os.environ.get("STORAGE_ACCOUNT_URL"):
+    # With a storage account the Blob store is used even when some matches are cached: it reads the
+    # local copy first and fetches only the matches that are missing.
+    if not os.environ.get("STORAGE_ACCOUNT_URL"):
         return SnapshotStore(root / "snapshots")
     return BlobSnapshotStore(root / "snapshots", run_id or os.environ.get("TALKBACK_RUN_ID", "md-2026"))

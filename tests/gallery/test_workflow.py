@@ -128,3 +128,28 @@ def test_lab_failure_degrades_but_moment_still_airs(env):
     assert run.bundle.status["lab"].startswith("degraded")
     stat = next(c for c in run.bundle.cues if c.audience == "analyst")
     assert stat.verdicts["uk"].verdict == Verdict.ON_AIR
+
+
+class _OfflineRemote:
+    """Records what the workflow would send over A2A, then fails like an unreachable agent."""
+
+    def __init__(self):
+        self.prompts: list[tuple[str, str]] = []
+
+    def enabled(self, name: str) -> bool:
+        return True
+
+    async def ask(self, name: str, prompt: str) -> str:
+        self.prompts.append((name, prompt))
+        raise ConnectionError("agent unreachable")
+
+
+def test_remote_agents_are_told_the_run_and_failures_are_marked(env):
+    deps, job = env
+    remote = _OfflineRemote()
+    run = asyncio.run(run_moment(MomentDeps(**{**deps.__dict__, "remote": remote, "run_name": "md-2026"}), job))
+    run = asyncio.run(answer_hold(run, {h["cue_id"]: "reject" for h in run.hold.holds}))
+    assert {n for n, _ in remote.prompts} == {"archivist", "lab"}
+    assert all(p.startswith("Run: md-2026\n") for _, p in remote.prompts)
+    assert run.bundle.status["archivist"].startswith("degraded: a2a")
+    assert run.bundle.status["lab"].startswith("degraded: a2a")

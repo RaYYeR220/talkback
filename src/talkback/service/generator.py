@@ -98,15 +98,21 @@ async def publish(run_dir: Path, run_id: str, speed: float) -> int:
     return sent
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     from talkback.world.matchday import prepare_matchday, run_matchday_offline
 
     ap = argparse.ArgumentParser()
+    ap.add_argument("--upload", type=Path, default=None,
+                    help="only upload an existing run directory (e.g. the replay run before the agents deploy)")
     ap.add_argument("--seed", type=int, default=int(os.environ.get("TALKBACK_SEED", "2026")))
     ap.add_argument("--run-id", default=os.environ.get("TALKBACK_RUN_ID"))
     ap.add_argument("--speed", type=float, default=float(os.environ.get("TALKBACK_LIVE_SPEED", "10")))
     ap.add_argument("--out", type=Path, default=Path(os.environ.get("TMPDIR", "/tmp")) / "talkback-gen")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
+    if a.upload is not None:
+        run_id = a.run_id or a.upload.name
+        print(f"uploaded {upload_run(a.upload, run_id)} files of {run_id}", flush=True)
+        return
     run_id = a.run_id or f"md-{a.seed}-{int(time.time())}"
     out = run_matchday_offline(prepare_matchday(a.seed), a.out / run_id)
     print(f"generated {run_id}; uploaded {upload_run(out, run_id)} files", flush=True)
