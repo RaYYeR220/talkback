@@ -27,6 +27,19 @@ class XTGrid(BaseModel):
         r = min(self.rows - 1, max(0, int(y / PITCH_WIDTH * self.rows)))
         return r, c
 
+    def array(self) -> np.ndarray:
+        return np.asarray(self.values, float)
+
+    def value_np(self, xs: np.ndarray, ys: np.ndarray, attacking_right: bool, arr: np.ndarray | None = None) -> np.ndarray:
+        xs = np.asarray(xs, float)
+        ys = np.asarray(ys, float)
+        if not attacking_right:
+            xs, ys = PITCH_LENGTH - xs, PITCH_WIDTH - ys
+        c = np.clip((xs / PITCH_LENGTH * self.cols).astype(int), 0, self.cols - 1)
+        r = np.clip((ys / PITCH_WIDTH * self.rows).astype(int), 0, self.rows - 1)
+        a = self.array() if arr is None else arr
+        return a[r, c]
+
     def value(self, x: float, y: float, attacking_right: bool) -> float:
         if not attacking_right:
             x, y = PITCH_LENGTH - x, PITCH_WIDTH - y
@@ -41,7 +54,8 @@ def prior_grid(cols: int = 16, rows: int = 12) -> XTGrid:
         row = []
         for c in range(cols):
             x = (c + 0.5) * PITCH_LENGTH / cols
-            row.append(0.002 + 0.38 * math.exp(-((105 - x) / 22) ** 2) * math.exp(-((y - 34) / 14) ** 2))
+            spot = math.hypot(105 - 10 - x, (y - 34) * 1.3)
+            row.append(0.006 + 0.012 * (x / 105) ** 2 + 0.15 * math.exp(-(spot / 13) ** 2))
         vals.append(row)
     return XTGrid(cols=cols, rows=rows, values=vals)
 
