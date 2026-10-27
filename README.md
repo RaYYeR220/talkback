@@ -83,7 +83,7 @@ flowchart LR
   A & L --> B
   W --> M[Foundry models]
   C --> CS[Content Safety]
-  T --> O[OGraf Server API] --> R[renderer outputs<br/>world · uk · es · mena · kids · presenter]
+  T --> O[OGraf Server API] --> R[renderer outputs<br/>world · uk · es · mena · kids · br · presenter]
   T --> CO[(Cosmos DB<br/>claim ledger)]
   T --> AI[App Insights / Foundry tracing]
   T --> X[MCP server]

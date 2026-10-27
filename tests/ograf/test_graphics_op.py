@@ -4,7 +4,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from talkback.ograf.graphics_op import GAP_MS, PREROLL_MS, TEMPLATES, GraphicAction, GraphicsOp, _clock, is_rtl
-from talkback.ograf.layout import Layer
+from talkback.ograf.layout import OUTPUTS, Layer
 from talkback.ograf.spec import GRAPHICS_DIR
 from talkback.schemas.models import MatchState, Verdict
 from tests.ograf.support import make_cue
@@ -231,6 +231,14 @@ def test_localised_rtl_text_flips_the_graphic(op):
     data = op.plan(cue, "mena", NOW, delay_ms=120_000)[0].data
     assert data["line"] == ARABIC and data["dir"] == "rtl" and data["lang"] == "ar" and data["kind"] == "FAREWELL"
     assert is_rtl(ARABIC) and not is_rtl("14 pressures") and not is_rtl("")
+
+
+def test_br_has_its_own_portuguese_output(op):
+    line = "Okafor tem 14 pressões no último terço."
+    cue = make_cue("lower_third", verdicts={"br": (Verdict.ON_AIR, line)})
+    load = op.plan(cue, "br", NOW)[0]
+    assert "br" in OUTPUTS and load.renderer_id == "br"
+    assert load.data["line"] == line and load.data["lang"] == "pt" and load.data["dir"] == "ltr"
 
 
 def test_due_hands_out_actions_in_time_order(op):

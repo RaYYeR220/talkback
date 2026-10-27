@@ -74,7 +74,7 @@ STORY_BADGES = {
 }
 IFB_LABELS = {"story_card": "STORY", "stat_card": "STAT", "counterfactual_card": "WHAT IF", "table_swing": "TABLE",
               "lower_third": "NAME", "player_tag": "PLAYER"}
-LANGUAGES = {"world": "en", "uk": "en", "kids": "en", "es": "es", "mena": "ar"}
+LANGUAGES = {"world": "en", "uk": "en", "kids": "en", "es": "es", "mena": "ar", "br": "pt"}
 
 # The cleared, localised line always fills the graphic's free-text field; cue.data only supplies
 # labels and numbers.

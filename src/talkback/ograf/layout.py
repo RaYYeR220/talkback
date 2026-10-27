@@ -10,6 +10,7 @@ OUTPUTS: dict[str, tuple[str, str]] = {
     "es": ("Spain", "Spanish-language territory feed"),
     "mena": ("MENA", "Arabic right-to-left territory feed, delayed broadcast"),
     "kids": ("Kids", "Minors-safe English feed"),
+    "br": ("Brazil", "Portuguese-language territory feed"),
     "presenter": ("Presenter", "Talkback cue strip for the presenter, never composited to air"),
 }
 PRESENTER = "presenter"
