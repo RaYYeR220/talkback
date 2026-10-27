@@ -7,7 +7,7 @@ specialised agents finds the stories a busy matchday buries, proves every line i
 line separately for every territory it will air in, and cues approved lines to the presenter and onto
 broadcast graphics.
 
-> [Live gallery](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io) · [Console](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io/gallery) · [Review in five minutes](docs/JUDGES.md) · [Proof](docs/PROOF.md) · [What we claim](docs/CLAIMS.md)
+> [Live gallery](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io) · [Console](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io/gallery) · [Demo video](https://youtu.be/nKT67v0Fmh4) · [Review in five minutes](docs/JUDGES.md) · [Proof](docs/PROOF.md) · [What we claim](docs/CLAIMS.md)
 
 ---
 
