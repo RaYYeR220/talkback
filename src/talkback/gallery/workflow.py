@@ -25,7 +25,7 @@ from talkback.clearance.packs import PackContext
 from talkback.gallery.agents.archivist import make_archivist, pick_storylines
 from talkback.gallery.agents.desks import TerritoryDesk, localise_all
 from talkback.gallery.agents.lab import LabBackend, LabResult, finalize, make_lab
-from talkback.gallery.agents.writer import WriterFailure, draft_cues, make_writer
+from talkback.gallery.agents.writer import WriterFailure, draft_cues, make_writer, revise_cue
 from talkback.gallery.spotter import Moment
 from talkback.gallery.storyboard import StoryBoard
 from talkback.gallery.world import World
@@ -86,6 +86,7 @@ class CueBundle:
     lab: LabResult
     status: dict[str, str]
     timings: dict[str, int] = field(default_factory=dict)
+    evidence: list[Fact] = field(default_factory=list)
 
 
 @dataclass
@@ -198,9 +199,20 @@ class ClearanceExec(Executor):
             facts={f.id: f for f in d.job.facts}, experiments={x.id: x for x in d.lab.experiments},
             storylines={s.id: s for s in d.stories}, state=self.deps.state_now(match_id),
             now_t=self.deps.state_now(match_id).t, lang="en")
-        for cue in d.cues:
+        for n, cue in enumerate(d.cues):
             localized = await localise_all(cue, self.deps.desks)
             await self.deps.gate.evaluate(cue, ctx_checks, localized, self.deps.pack_ctx(match_id))
+            if _fixable(cue):
+                # one revision: the writer sees exactly why Clearance refused and may try once more
+                second = await revise_cue(make_writer(self.deps.client("fast")), cue, cue.universal_reasons,
+                                          d.job.moment, d.job.facts, d.lab, d.stories, d.job.names)
+                if second is not None:
+                    localized = await localise_all(second, self.deps.desks)
+                    await self.deps.gate.evaluate(second, ctx_checks, localized, self.deps.pack_ctx(match_id))
+                    second.data = {**second.data, "revision_of": cue.id,
+                                   "first_refusal": "; ".join(cue.universal_reasons)[:300]}
+                    d.cues[n] = second
+                    d.status["revisions"] = str(int(d.status.get("revisions", "0")) + 1)
         d.timings["clearance"] = _ms(t0)
         holds = [{"cue_id": c.id, "text": c.text,
                   "territories": [t for t, v in c.verdicts.items() if v.verdict == Verdict.HOLD_FOR_PRODUCER],
@@ -231,9 +243,20 @@ class ClearanceExec(Executor):
         await ctx.yield_output(_bundle(d))
 
 
+FIXABLE = ("number", "attribution", "strength", "causal", "storyline")
+
+
+def _fixable(cue: Cue) -> bool:
+    killed_everywhere = bool(cue.verdicts) and all(v.verdict == Verdict.KILLED for v in cue.verdicts.values())
+    return bool(killed_everywhere and cue.universal_reasons
+                and all(r.split(":")[0] in FIXABLE for r in cue.universal_reasons))
+
+
 def _bundle(d: Drafts) -> CueBundle:
+    cited = {r for c in d.cues for cl in c.claims for r in cl.refs}
+    evidence = [f for f in d.job.facts if f.id in cited]
     return CueBundle(moment=d.job.moment, cues=d.cues, stories=d.stories, lab=d.lab, status=d.status,
-                     timings=d.timings)
+                     timings=d.timings, evidence=evidence)
 
 
 def build_moment_workflow(deps: MomentDeps):

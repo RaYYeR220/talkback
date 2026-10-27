@@ -18,7 +18,8 @@ RULE_SALIENCE = {
 }
 SURGE_DROP = 0.4
 SURGE_WINDOW_MS = 10 * 60_000
-SPEED_ALERT_KMH = 33.0
+SPEED_ALERT_KMH = 34.0
+SPEED_ALERTS_PER_MATCH = 2
 
 
 class Candidate(BaseModel):
@@ -117,7 +118,7 @@ class Triggers:
                 out.append(self._cand("momentum_swing", None, now_t, team, m.evidence[-10:],
                                       before=round(prev, 3), now=round(m.value, 3)))
         for pid in self.desk.players():
-            if pid in self._speed_flagged:
+            if pid in self._speed_flagged or len(self._speed_flagged) >= SPEED_ALERTS_PER_MATCH:
                 continue
             f = self.desk.fact("player.top_speed_kmh", pid)
             if f and f.value >= SPEED_ALERT_KMH:

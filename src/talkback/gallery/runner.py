@@ -307,7 +307,9 @@ class MatchdayRunner:
                                           "status": bundle.status, "timings": bundle.timings,
                                           "stories": [s.id for s in bundle.stories],
                                           "experiments": [x.model_dump(mode="json") for x in bundle.lab.experiments],
-                                          "lab_conclusion": bundle.lab.conclusion})
+                                          "lab_conclusion": bundle.lab.conclusion,
+                                          "evidence": [f.model_dump(mode="json") for f in bundle.evidence
+                                                       if any(f.id in cl.refs for cl in cue.claims)]})
         self.bc.publish("board", m.t, {"match_id": m.fixture_id,
                                         "stories": [s.model_dump(mode="json") for s in m.board.stories.values()]})
 

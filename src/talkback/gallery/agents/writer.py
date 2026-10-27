@@ -21,8 +21,10 @@ INSTRUCTIONS = (
     "one for the analyst feed, one for casual fans, and one 'presenter' line of at most 14 words that the "
     "presenter can say in a gap. Rules you must follow, they are checked by code:\n"
     "1. Every number in a line must be a claim whose refs point to a fact, experiment or storyline id from the "
-    "evidence, with exactly that value (a fraction like 0.31 may be written as 31%).\n"
-    "2. The claim's subject is the player or club id the number belongs to.\n"
+    "evidence; the claim's value is the number exactly as written in the line (a fact of 0.31 written as 31% "
+    "has value 31). For comparative words (more, on top, dominant) cite the facts of both sides.\n"
+    "2. The claim's subject is the player or club id the number or story belongs to (for a storyline claim, one "
+    "of the ids listed as its subjects), never a fact, experiment or storyline id.\n"
     "3. Use causal words (because, forced, cost them, won it) only with a supported experiment; otherwise "
     "describe, do not explain.\n"
     "4. Declare each claim's strength: 0 neutral, 1 hedged (edging, early signs), 2 firm (on top, in charge), "
@@ -76,7 +78,7 @@ def evidence_prompt(moment: Moment, facts: list[Fact], lab: LabResult | None, st
     lines.append("")
     lines.append("Storylines:")
     for s in stories:
-        lines.append(f"- {s.id} | {s.kind} | {s.summary} | facts {s.facts}")
+        lines.append(f"- {s.id} | {s.kind} | subjects {s.subjects} | {s.summary} | facts {s.facts}")
     if not stories:
         lines.append("- none")
     return "\n".join(lines)
@@ -85,6 +87,42 @@ def evidence_prompt(moment: Moment, facts: list[Fact], lab: LabResult | None, st
 def make_writer(client) -> Agent:
     return Agent(client=client, instructions=INSTRUCTIONS, name="writer",
                  description="Drafts evidence-tied lines for analyst, casual and presenter feeds.")
+
+
+def _normalise(claims: list[_Claim], stories: list[Storyline]) -> list[Claim]:
+    """A claim naming a storyline id as its subject means the story's own subject."""
+    by_id = {s.id: s for s in stories}
+    out = []
+    for c in claims:
+        subject = c.subject
+        if subject in by_id:
+            story = by_id[subject]
+            subject = story.subjects[0] if len(story.subjects) == 1 else None
+        out.append(Claim(**{**c.model_dump(), "subject": subject}))
+    return out
+
+
+REVISE = (
+    "Clearance rejected your line for these reasons:\n{reasons}\n\nRewrite it once so it passes: give every "
+    "number a claim with the right ref, value and subject, remove anything you cannot back with the evidence, "
+    "and soften wording that is too strong for the evidence. Same JSON format, one cue for the same audience."
+)
+
+
+async def revise_cue(agent: Agent, cue: Cue, reasons: list[str], moment: Moment, facts: list[Fact],
+                     lab: LabResult | None, stories: list[Storyline], names: dict[str, str]) -> Cue | None:
+    reasons_text = "\n".join(f"- {r}" for r in reasons[:6])
+    prompt = (evidence_prompt(moment, facts, lab, stories, names) + "\n\nYour line (" + cue.audience + "): "
+              + cue.text + "\n\n" + REVISE.format(reasons=reasons_text))
+    try:
+        answer = parse_json((await agent.run(prompt)).text, WriterAnswer)
+    except ParseError:
+        return None
+    if not answer.cues:
+        return None
+    d = answer.cues[0]
+    return cue.model_copy(update={"id": cue.id + "-r", "text": d.text.strip(), "claims": _normalise(d.claims, stories),
+                                  "data": d.data, "verdicts": {}, "universal_reasons": []})
 
 
 async def draft_cues(agent: Agent, moment: Moment, facts: list[Fact], lab: LabResult | None,
@@ -100,6 +138,6 @@ async def draft_cues(agent: Agent, moment: Moment, facts: list[Fact], lab: LabRe
         cues.append(Cue(
             id=f"Q-{moment.id}-{d.audience}-{n}", match_id=moment.match_id, moment_id=moment.id,
             audience=d.audience, text=d.text.strip(), lang="en",
-            claims=[Claim(**c.model_dump()) for c in d.claims], template=template, data=d.data,
+            claims=_normalise(d.claims, stories), template=template, data=d.data,
             valid_state_hash=state_hash, max_age_ms=MAX_AGE_MS[d.audience], created_t=now_t))
     return cues
