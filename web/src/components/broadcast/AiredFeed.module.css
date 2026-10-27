@@ -7,14 +7,18 @@
 .head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .title {
-  font-size: var(--text-sm);
+  font-family: var(--font-umd);
+  font-size: var(--text-umd);
   font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-umd);
+  text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .where {
@@ -30,15 +34,15 @@
   color: var(--t-mena);
   padding: var(--space-1) var(--space-2);
   border: var(--hairline) dashed color-mix(in oklab, var(--t-mena) 45%, transparent);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-1);
 }
 
 .list {
   display: grid;
   gap: 1px;
   background: var(--line);
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius-2);
+  border: var(--hairline) solid var(--bezel);
+  border-radius: var(--radius-1);
   overflow: hidden;
 }
 
@@ -47,7 +51,7 @@
 }
 
 .item[data-fav] {
-  background: color-mix(in oklab, var(--accent) 6%, var(--bg-raised));
+  background: color-mix(in oklab, var(--fg) 5%, var(--bg-raised));
 }
 
 .button {
@@ -71,7 +75,7 @@ button.button:hover {
   font-size: var(--text-2xs);
   color: var(--fg-muted);
   font-family: var(--font-mono);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -88,15 +92,20 @@ button.button:hover {
   display: grid;
   gap: var(--space-1);
   padding-inline-start: var(--space-3);
-  border-inline-start: 2px solid var(--accent);
+  border-inline-start: 2px solid var(--fg-dim);
 }
 
 .badge {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-caps);
+  font-family: var(--font-umd);
+  font-weight: var(--weight-strong);
+  font-size: 0.875rem;
+  letter-spacing: var(--tracking-umd);
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--fg-muted);
+}
+
+[dir="rtl"] .badge {
+  font-family: var(--font-umd);
 }
 
 .chips {
@@ -110,14 +119,19 @@ button.button:hover {
 }
 
 .evidence {
-  color: var(--on-air);
-  border-color: color-mix(in oklab, var(--on-air) 35%, transparent);
+  color: var(--ok);
+  border-color: color-mix(in oklab, var(--ok) 35%, transparent);
 }
 
 .recap {
-  color: var(--accent);
+  color: var(--fg);
 }
 
 .fav {
-  color: var(--accent);
+  color: var(--fg);
+}
+
+.fav::before {
+  content: "◆ ";
+  color: var(--fg-muted);
 }

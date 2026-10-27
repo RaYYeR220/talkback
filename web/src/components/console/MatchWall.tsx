@@ -61,11 +61,12 @@ export function MatchWall({ selected, onSelect }: { selected: string | null; onS
                 </span>
               ) : null}
               <span className={styles.row}>
+                <span className="lamp" data-on={isDirector ? "pgm" : undefined} aria-hidden="true" />
                 <span className={styles.team}>
                   {clubShort(home)}
                   <Reds n={reds[0]} />
                 </span>
-                <span className={`${styles.score} mono`}>
+                <span className={styles.score}>
                   {score[0]}–{score[1]}
                 </span>
                 <span className={`${styles.team} ${styles.away}`}>
@@ -75,7 +76,7 @@ export function MatchWall({ selected, onSelect }: { selected: string | null; onS
               </span>
               <span className={styles.foot}>
                 <span className="mono">{minuteLabel(minute, sc?.finished)}</span>
-                {isDirector ? <span className={styles.onair}>On screen</span> : null}
+                {isDirector ? <span className={styles.onair}>PGM · on air</span> : null}
                 {!isDirector && last ? (
                   <span className={styles.last}>
                     {last.type === "goal" ? "Goal" : last.type === "card" ? `${last.outcome} card` : last.type}{" "}

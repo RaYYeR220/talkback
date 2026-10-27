@@ -38,7 +38,7 @@ export function GoLiveButton() {
     <div className={styles.wrap}>
       <button
         type="button"
-        className={`btn btn-sm ${live ? "" : "btn-primary"}`}
+        className={`btn btn-sm ${live ? "" : "btn-primary btn-tally"}`}
         onClick={start}
         disabled={busy || live}
         aria-describedby={note ? "golive-note" : undefined}

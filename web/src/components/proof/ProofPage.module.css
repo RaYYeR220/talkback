@@ -1,15 +1,19 @@
 .main {
   max-width: 64rem;
   margin: 0 auto;
-  padding: var(--space-6) var(--gutter) var(--space-7);
+  padding: var(--space-8) var(--gutter) var(--space-7);
   display: grid;
   gap: var(--space-6);
 }
 
 .intro {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   max-width: var(--prose-max);
+}
+
+.intro p:last-child {
+  font-size: var(--text-body);
 }
 
 .title {

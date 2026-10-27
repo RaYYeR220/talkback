@@ -1,24 +1,27 @@
-import { Figtree, Geist_Mono, Instrument_Serif, Noto_Sans_Arabic } from "next/font/google";
+import { Barlow_Condensed, IBM_Plex_Mono, Noto_Sans_Arabic, Schibsted_Grotesk } from "next/font/google";
 
 // Faces are exposed as CSS variables; theme.css decides which variable plays which role.
 
-export const display = Instrument_Serif({
+/** Display and UI text: one grotesk, 400 for body, 500 for headings and the claim. */
+export const grotesk = Schibsted_Grotesk({
   subsets: ["latin", "latin-ext"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
+  variable: "--font-schibsted",
   display: "swap",
 });
 
-export const ui = Figtree({
+/** Under-monitor displays, tallies and on-screen captions. */
+export const condensed = Barlow_Condensed({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-figtree",
+  weight: ["500", "600"],
+  variable: "--font-barlow-condensed",
   display: "swap",
 });
 
-export const mono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+/** Labels, clocks and data. */
+export const mono = IBM_Plex_Mono({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
   display: "swap",
 });
 
@@ -29,4 +32,4 @@ export const arabic = Noto_Sans_Arabic({
   preload: false,
 });
 
-export const fontVariables = [display.variable, ui.variable, mono.variable, arabic.variable].join(" ");
+export const fontVariables = [grotesk.variable, condensed.variable, mono.variable, arabic.variable].join(" ");

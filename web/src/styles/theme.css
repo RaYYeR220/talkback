@@ -1,5 +1,7 @@
 /*
- * Talkback theme. Every colour, font, radius, space and motion value the UI uses lives here.
+ * Talkback theme: "Through the glass". The gallery seen from behind the director:
+ * warm black, fine grain, monitors with under-monitor displays (UMDs), one red tally.
+ * Every colour, font, radius, space and motion value the UI uses lives here.
  * Re-theming = edit this file (and src/styles/fonts.ts if the faces change).
  * Components only ever read these custom properties; the pitch canvas reads them too.
  */
@@ -8,110 +10,140 @@
   color-scheme: dark;
 
   /* ---- ground and ink ---------------------------------------------------- */
-  --bg: #0e0f0e; /* tinted near-black ground */
-  --bg-raised: #141614; /* panels */
-  --bg-sunken: #0a0b0a; /* wells, monitor bezel */
-  --bg-hover: #1b1d1b;
-  --fg: #ecebe5;
-  --fg-muted: #a6a59e;
-  --fg-faint: #6d6c66;
-  --fg-inverse: #0e0f0e;
+  --bg: #0c0b0a; /* warm black ground */
+  --bg-raised: #151412; /* panels, monitor bezels */
+  --bg-hover: #1e1d1a;
+  --bg-sunken: #070706; /* UMD strips, wells */
+  --bezel: #252420; /* the 1px edge around a bezel */
+  --fg: #efece6;
+  --fg-muted: #a29f98;
+  --fg-faint: #858178; /* smallest readable text: 4.7:1 on panels */
+  --fg-dim: #5f5c56; /* rules, unlit lamps, decoration only (not for text) */
+  --fg-inverse: #0c0b0a;
 
-  /* hairlines: 1px at ~10% foreground */
-  --line: color-mix(in oklab, var(--fg) 10%, transparent);
-  --line-strong: color-mix(in oklab, var(--fg) 18%, transparent);
+  /* hairlines: 1px at ~10% ink */
+  --line: rgba(239, 236, 230, 0.1);
+  --line-strong: rgba(239, 236, 230, 0.18);
   --hairline: 1px;
 
-  /* ---- the one accent ---------------------------------------------------- */
-  --accent: #ff6b35;
-  --accent-fg: #160a05;
-  --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
-  --focus: var(--accent);
+  /* ---- the tally: programme / on air, and nothing else -------------------- */
+  --tally: #e3262f; /* lamps, frames, the lower-third bar */
+  --tally-ink: #f0434a; /* tally as text: 5:1 on the ground */
+  --tally-glow: rgba(227, 38, 47, 0.28);
+  --tally-soft: color-mix(in oklab, var(--tally) 16%, transparent);
+  --lamp-off: #2a2926;
+
+  /* the neutral accent is ink: buttons, focus, selection */
+  --accent: var(--fg);
+  --accent-fg: var(--fg-inverse);
+  --accent-soft: rgba(239, 236, 230, 0.12);
+  --focus: var(--fg);
 
   /* ---- semantic: verdicts ------------------------------------------------ */
-  --on-air: #47c487;
-  --on-air-soft: color-mix(in oklab, var(--on-air) 16%, transparent);
-  --held: #e8c15a;
-  --held-soft: color-mix(in oklab, var(--held) 16%, transparent);
-  --killed: #ee5a52;
-  --killed-soft: color-mix(in oklab, var(--killed) 15%, transparent);
+  --on-air: var(--tally);
+  --on-air-ink: var(--fg);
+  --on-air-soft: color-mix(in oklab, var(--tally) 14%, transparent);
+  --held: #e8b44a;
+  --held-soft: color-mix(in oklab, var(--held) 14%, transparent);
+  /* kills and errors: a cold violet, never the tally */
+  --killed: #a593ff;
+  --killed-soft: color-mix(in oklab, var(--killed) 14%, transparent);
+  --error: var(--killed);
   --pending: var(--fg-faint);
+
+  /* ---- semantic: good / bad (health, swings, zones, approve) -------------- */
+  --ok: #6dc48c;
+  --ok-soft: color-mix(in oklab, var(--ok) 14%, transparent);
+  --bad: var(--killed);
 
   /* ---- semantic: story status ------------------------------------------- */
   --story-latent: var(--fg-faint);
-  --story-live: var(--held);
-  --story-surfaced: var(--on-air);
+  --story-live: var(--held); /* due and not on air yet: the buried story */
+  --story-surfaced: var(--ok);
   --story-resolved: var(--fg-muted);
 
   /* ---- semantic: agent health ------------------------------------------- */
-  --ok: var(--on-air);
   --degraded: var(--held);
-  --failed: var(--killed);
+  --failed: var(--error);
   --skipped: var(--fg-faint);
 
   /* ---- live / replay badges --------------------------------------------- */
-  --live: #ee5a52;
+  --live: var(--tally-ink);
   --replay: var(--fg-muted);
 
   /* ---- table zones ------------------------------------------------------ */
-  --zone-title: var(--accent);
-  --zone-top4: var(--on-air);
-  --zone-relegation: var(--killed);
-  --swing-up: var(--on-air);
-  --swing-down: var(--killed);
+  --zone-title: var(--fg);
+  --zone-top4: var(--ok);
+  --zone-relegation: var(--bad);
+  --swing-up: var(--ok);
+  --swing-down: var(--bad);
 
-  /* ---- program monitor / pitch (read by the canvas) ---------------------- */
-  --pitch: #16201a;
-  --pitch-stripe: #19241d;
-  --pitch-line: color-mix(in oklab, #ffffff 26%, transparent);
-  --pitch-ink: #f4f3ee; /* ball, player rings, shirt numbers */
+  /* the physical red card (a football object, not a tally) */
+  --card-red: #d8453c;
+
+  /* ---- monitors / pitch (read by the canvas) ------------------------------ */
+  --pitch: #23271f;
+  --pitch-stripe: #262b22;
+  --pitch-line: rgba(239, 236, 230, 0.28);
+  --pitch-ink: #efece6; /* ball, player rings, shirt numbers */
   --pitch-shadow: rgba(0, 0, 0, 0.45);
-  --home-fallback: #e8e6df;
-  --away-fallback: #ff6b35;
-  --graphic-bg: color-mix(in oklab, #0b0c0b 86%, transparent);
-  --graphic-fg: #f6f5f0;
-  --graphic-accent: var(--accent);
+  --pitch-home-mono: #efece6; /* the landing wall draws both sides in ink */
+  --pitch-away-mono: #8f8a80;
+  --home-fallback: #efece6;
+  --away-fallback: #8f8a80;
+  --graphic-bg: rgba(12, 11, 10, 0.9);
+  --graphic-fg: #efece6;
+  --graphic-accent: var(--tally); /* the bar of an on-air lower third */
+  --graphic-muted: #a29f98;
 
-  /* ---- per-territory accents (used on chips and output switch) ---------- */
+  /* ---- per-territory labels (chips and output switch) -------------------- */
   --t-world: var(--fg);
-  --t-uk: #8fb8ff;
-  --t-es: #ffb04a;
-  --t-mena: #4fd1b5;
-  --t-kids: #f28dd4;
-  --t-br: #b6e35a;
+  --t-uk: #9dbaf0;
+  --t-es: #e9b27a;
+  --t-mena: #6fcfb8;
+  --t-kids: #e3a0d6;
+  --t-br: #b9d77a;
 
   /* ---- type ------------------------------------------------------------- */
-  --font-display: var(--font-instrument-serif), "Times New Roman", serif;
-  --font-ui: var(--font-figtree), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-display: var(--font-schibsted), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui: var(--font-schibsted), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-umd: var(--font-barlow-condensed), "Arial Narrow", sans-serif-condensed, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-arabic: var(--font-noto-arabic), "Segoe UI", Tahoma, sans-serif;
 
   --text-2xs: 0.6875rem; /* 11 */
+  --text-label: 0.71875rem; /* 11.5: mono labels */
   --text-xs: 0.75rem; /* 12 */
   --text-sm: 0.8125rem; /* 13 */
   --text-md: 0.9375rem; /* 15 */
+  --text-body: 1.03125rem; /* 16.5: lede copy */
   --text-lg: 1.125rem; /* 18 */
   --text-xl: 1.5rem; /* 24 */
   --text-2xl: 2rem; /* 32 */
-  --text-display: clamp(2.75rem, 7.2vw, 6.25rem);
-  --text-display-sm: clamp(2rem, 4.4vw, 3.25rem);
+  --text-umd: 1rem; /* 16: under-monitor display */
+  --text-display: clamp(2.625rem, 6.2vw, 5.625rem); /* 42-90 */
+  --text-display-sm: clamp(2rem, 4.4vw, 3.5rem);
 
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-strong: 600;
+  --leading-display: 0.98;
   --leading-tight: 1.05;
   --leading-snug: 1.3;
-  --leading-body: 1.55;
+  --leading-body: 1.5;
   --tracking-caps: 0.08em;
-  --tracking-display: -0.015em;
+  --tracking-eyebrow: 0.1em;
+  --tracking-umd: 0.06em;
+  --tracking-display: -0.045em;
+  --tracking-heading: -0.035em;
 
-  /* ---- space (4px base) ------------------------------------------------- */
+  /* ---- space (4 / 8 / 16 / 24 / 40 / 72, plus 12 for dense panels) ------- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
-  --space-6: 2rem;
+  --space-6: 2.5rem;
   --space-7: 3rem;
   --space-8: 4.5rem;
   --space-9: 7rem;
@@ -121,20 +153,32 @@
 
   /* ---- shape ------------------------------------------------------------ */
   --radius-1: 2px;
-  --radius-2: 4px;
-  --radius-3: 8px;
+  --radius-2: 2px;
+  --radius-3: 2px;
   --radius-pill: 999px;
-  --shadow-drawer: -24px 0 48px rgba(0, 0, 0, 0.45);
-  --scrim: rgba(4, 5, 4, 0.6);
+  --umd-h: 1.625rem; /* 26 */
+  --bezel-ring: 0 0 0 6px var(--bg-raised), 0 0 0 7px var(--bezel);
+  --bezel-ring-pgm: 0 0 0 6px var(--bg-raised), 0 0 0 8px var(--tally), 0 0 60px 6px var(--tally-glow);
+  --shadow-drawer: -24px 0 48px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(7, 7, 6, 0.66);
+
+  /* ---- texture ---------------------------------------------------------- */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E");
+  --grain-size: 200px;
+  --grain-opacity: 0.8;
+  --grid-line: rgba(239, 236, 230, 0.028);
+  --grid-step: 64px;
 
   /* ---- motion ----------------------------------------------------------- */
   --dur-1: 120ms;
   --dur-2: 220ms;
   --dur-3: 420ms;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-rack: 600ms; /* rack focus */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ---- layers ----------------------------------------------------------- */
   --z-bar: 20;
+  --z-grain: 60;
   --z-drawer: 50;
 }
 
@@ -144,10 +188,17 @@
   }
 }
 
+@media (min-width: 80rem) {
+  :root {
+    --gutter: 2.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-1: 0ms;
     --dur-2: 0ms;
     --dur-3: 0ms;
+    --dur-rack: 0ms;
   }
 }
