@@ -10,12 +10,27 @@ from __future__ import annotations
 import asyncio
 import time
 
+from pydantic import ValidationError
+
 from talkback.ograf.graphics_op import GraphicsOp, OGrafClient
-from talkback.schemas.models import Cue, MatchState, Verdict, state_hash
+from talkback.schemas.models import Cue, Fact, MatchState, Verdict, state_hash
 
 DELAY_MS = {"uk": 0, "es": 0, "br": 0, "kids": 0, "mena": 120_000, "world": 0}
 TERRITORY_OUTPUTS = ("world", "uk", "es", "mena", "kids", "br")
 CUE_FIELDS = set(Cue.model_fields)
+FACT_FIELDS = set(Fact.model_fields)
+
+
+def facts(raw: object) -> list[Fact]:
+    """The facts a cue message cites; malformed entries are skipped, not fatal."""
+    out = []
+    for f in raw if isinstance(raw, list) else []:
+        try:
+            out.append(Fact.model_validate({"match_id": None, "evidence": [], "computed_at": 0,
+                                            **{k: v for k, v in f.items() if k in FACT_FIELDS}}))
+        except (AttributeError, ValidationError):
+            continue
+    return out
 
 
 class GraphicsDriver:
@@ -40,11 +55,12 @@ class GraphicsDriver:
         try:
             if kind == "cue":
                 cue = Cue.model_validate({k: v for k, v in d.items() if k in CUE_FIELDS})
+                evidence = facts(d.get("evidence"))
                 for territory, v in cue.verdicts.items():
                     if v.verdict == Verdict.ON_AIR:
-                        self.op.plan(cue, territory, self.now(), delay_ms=self.delay(territory))
-                        if territory == "uk":
-                            self.op.plan(cue, "world", self.now(), delay_ms=0) if "world" in self.op.outputs else None
+                        self.op.plan(cue, territory, self.now(), delay_ms=self.delay(territory), evidence=evidence)
+                        if territory == "uk" and "world" in self.op.outputs:
+                            self.op.plan(cue, "world", self.now(), delay_ms=0, evidence=evidence)
             elif kind == "score":
                 self.scores[d["match_id"]] = d
                 if self.on_screen is None:

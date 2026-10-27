@@ -6,7 +6,7 @@ import httpx
 from talkback.ograf.graphics_op import GraphicsOp, OGrafClient
 from talkback.ograf.server import OGrafServer, create_app
 from talkback.schemas.models import MatchState, Verdict
-from tests.ograf.support import InProcessPage, assert_valid, make_cue, path_template
+from tests.ograf.support import InProcessPage, assert_valid, make_cue, make_fact, path_template
 
 NOW = 60_000
 
@@ -39,8 +39,7 @@ def test_graphics_op_drives_a_renderer_through_the_server_api():
             op = GraphicsOp()
             state = MatchState(match_id="F01", t=63 * 60_000, period=2, home_goals=0, away_goals=0, game_state_hash="h")
             op.plan_score(state, "uk", NOW, delay_ms=1_000, home="CAL", away="ASH")
-            cue = make_cue("stat_card", created_t=NOW, data={"metric": "Pressures", "value": 14, "n": 14})
-            op.plan(cue, "uk", NOW, delay_ms=1_000)
+            op.plan(make_cue("stat_card", created_t=NOW), "uk", NOW, delay_ms=1_000, evidence=[make_fact()])
 
             first = await op.tick(NOW + 500, client)
             assert [(a.action.graphic_id, a.action.action) for a in first] == [("talkback-stat-card", "load")]
@@ -80,17 +79,17 @@ def test_preemption_round_trip_and_offline_outputs():
             client = OGrafClient(http)
             op = GraphicsOp()
             both = {"uk": Verdict.ON_AIR, "kids": Verdict.ON_AIR}
-            op.plan(make_cue("stat_card", cue_id="S", verdicts=both), "uk", NOW)
-            op.plan(make_cue("stat_card", cue_id="S", verdicts=both), "kids", NOW)
+            op.plan(make_cue("lower_third", cue_id="S", verdicts=both), "uk", NOW)
+            op.plan(make_cue("lower_third", cue_id="S", verdicts=both), "kids", NOW)
             await op.tick(NOW, client)
-            op.plan(make_cue("table_swing", cue_id="T", created_t=NOW + 2_000), "uk", NOW + 2_000)
+            op.plan(make_cue("story_card", cue_id="T", created_t=NOW + 2_000), "uk", NOW + 2_000)
             applied = await op.tick(NOW + 2_000, client)
             assert [(a.action.cue_id, a.action.action) for a in applied] == [("S", "stop"), ("T", "load"), ("T", "play")]
             assert all(a.ok for a in applied)
-            card = await client.target("uk", {"layer": 40})
-            assert [g["graphic"]["id"] for g in card["graphicInstances"]] == ["talkback-table-swing"]
-            kids = await client.target("kids", {"layer": 40})
-            assert [g["graphic"]["id"] for g in kids["graphicInstances"]] == ["talkback-stat-card"], \
+            lower = await client.target("uk", {"layer": 30})
+            assert [g["graphic"]["id"] for g in lower["graphicInstances"]] == ["talkback-story-card"]
+            kids = await client.target("kids", {"layer": 30})
+            assert [g["graphic"]["id"] for g in kids["graphicInstances"]] == ["talkback-lower-third"], \
                 "an output with no page connected still tracks what is on air"
             assert (await client.renderer("kids"))["renderer"]["status"]["status"] == "WARNING"
         assert page.methods().count("load") == 2
