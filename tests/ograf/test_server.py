@@ -1,11 +1,14 @@
 import json
+import time
 
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from talkback.ograf.layout import OUTPUTS
-from talkback.ograf.server import END_STEP, OFFLINE, OGrafServer, create_app, target_step
+from talkback.ograf import layout
+from talkback.ograf.graphics_op import OGrafClient
+from talkback.ograf.layout import OUTPUTS, control_token
+from talkback.ograf.server import END_STEP, MAX_MISSES, OFFLINE, OGrafServer, create_app, target_step
 from talkback.ograf.spec import component_validator
 from tests.ograf.support import FakePage, assert_valid
 
@@ -23,9 +26,13 @@ def server():
     return OGrafServer(timeout_s=2.0)
 
 
+def auth(server):
+    return {"Authorization": f"Bearer {server.token}"}
+
+
 @pytest.fixture
 def client(server):
-    with TestClient(create_app(server)) as c:
+    with TestClient(create_app(server), headers=auth(server)) as c:
         yield c
 
 
@@ -167,12 +174,31 @@ def test_graphic_errors_are_550(client):
         assert "blew up" in call(client, "post", PLAY, targeted(iid), status=550)["detail"]
 
 
-def test_silent_page_times_out_as_500(server):
+def test_silent_page_times_out_as_500_until_it_is_dropped(server):
     server.timeout_s = 0.2
-    with TestClient(create_app(server)) as client, client.websocket_connect("/ograf/ws/uk") as ws:
+    with TestClient(create_app(server), headers=auth(server)) as client, client.websocket_connect("/ograf/ws/uk") as ws:
         FakePage(ws, silent=True)
-        body = call(client, "post", LOAD, load_body(), status=500)
-        assert body["title"] == "Renderer Timeout"
+        for _ in range(MAX_MISSES):
+            body = call(client, "post", LOAD, load_body(), status=500)
+            assert body["title"] == "Renderer Timeout"
+        assert call(client, "post", LOAD, load_body())["statusMessage"] == OFFLINE
+
+
+def test_a_silent_page_does_not_stall_the_pages_that_answer(server):
+    server.timeout_s = 0.5
+    with (TestClient(create_app(server), headers=auth(server)) as client,
+          client.websocket_connect("/ograf/ws/uk") as good_ws, client.websocket_connect("/ograf/ws/uk") as bad_ws):
+        good, bad = FakePage(good_ws), FakePage(bad_ws, silent=True)
+        good.wait_for(1), bad.wait_for(1)
+        for _ in range(MAX_MISSES):
+            started = time.monotonic()
+            assert call(client, "post", LOAD, load_body())["statusCode"] == 200
+            assert time.monotonic() - started < 0.4, "the first answer is enough"
+        end = time.monotonic() + 3
+        while len(server.renderers["uk"].pages) > 1 and time.monotonic() < end:
+            time.sleep(0.02)
+        assert server.renderers["uk"].pages and len(server.renderers["uk"].pages) == 1, "the silent page is dropped"
+        assert call(client, "post", LOAD, load_body())["statusCode"] == 200
 
 
 def test_offline_renderer_keeps_state_and_replays_it_to_a_late_page(client):
@@ -191,6 +217,17 @@ def test_offline_renderer_keeps_state_and_replays_it_to_a_late_page(client):
     assert bug["params"]["data"]["label"] == "Pressures", "load data is kept and updates merged into it"
     assert play == {"graphicInstanceId": iid, "params": {"goto": 0, "skipAnimation": True}}
     assert card["graphicInstanceId"] == other
+
+
+def test_a_renderer_holds_a_bounded_number_of_instances(server, client):
+    server.max_instances = 3
+    with client.websocket_connect("/ograf/ws/uk") as ws:
+        page = FakePage(ws)
+        page.wait_for(1)
+        ids = [call(client, "post", LOAD, load_body())["graphicInstanceId"] for _ in range(5)]
+        assert list(server.renderers["uk"].instances) == ids[2:]
+        cleared = [i for m in page.wait_for(8) if m["method"] == "clear" for i in m["params"]["graphicInstanceIds"]]
+        assert cleared == ids[:2], "the oldest go first, from the page as well"
 
 
 def test_two_pages_on_one_renderer_both_get_commands(client):
@@ -237,3 +274,51 @@ def test_static_files_and_cors(client):
     assert client.get("/ograf/renderer/renderer.mjs").headers["content-type"].startswith("text/javascript")
     r = client.get("/ograf/v1/graphics", headers={"Origin": "http://controller.example"})
     assert r.headers["access-control-allow-origin"] == "*"
+
+
+MUTATIONS = [("post", LOAD), ("post", UPDATE), ("post", PLAY), ("post", STOP), ("put", CLEAR), ("post", CUSTOM),
+             ("post", "/renderers/{rendererId}/customActions/{customActionId}")]
+
+
+@pytest.mark.parametrize(("method", "template"), MUTATIONS)
+def test_changing_graphics_needs_the_control_token(server, method, template):
+    url = "/ograf/v1" + template.format(rendererId="kids", customActionId="identify")
+    with TestClient(create_app(server)) as anon:
+        r = anon.request(method.upper(), url, json={})
+        assert r.status_code == 401 and r.headers["www-authenticate"] == "Bearer"
+        _problem(r.json(), 401)
+        r = anon.request(method.upper(), url, json={}, headers={"Authorization": "Bearer not-the-token"})
+        assert r.status_code == 403
+        _problem(r.json(), 403)
+        r = anon.request(method.upper(), url, json={}, headers=auth(server))
+        assert r.status_code == 400, "past the token check, only the empty body is wrong"
+
+
+def test_with_the_token_graphics_go_on_air(server):
+    with TestClient(create_app(server)) as anon:
+        url = "/ograf/v1" + LOAD.format(rendererId="presenter")
+        assert anon.post(url, json=load_body()).status_code == 401
+        assert server.renderers["presenter"].instances == {}
+        assert anon.post(url, json=load_body(), headers=auth(server)).status_code == 200
+        assert len(server.renderers["presenter"].instances) == 1
+
+
+def test_reading_and_rendering_stay_public(server):
+    with TestClient(create_app(server)) as anon:
+        assert anon.get("/ograf/v1").status_code == anon.get("/ograf/v1/graphics").status_code == 200
+        assert anon.get("/ograf/v1/renderers/presenter").status_code == 200
+        r = anon.get("/ograf/v1/renderers/kids/target", params={"renderTarget": json.dumps(CARD)})
+        assert r.status_code == 200
+        assert anon.get("/ograf/renderer/").status_code == 200
+        with anon.websocket_connect("/ograf/ws/kids") as ws:
+            assert ws.receive_json()["method"] == "hello"
+
+
+def test_the_control_token_comes_from_the_environment_or_is_made_once_per_process(monkeypatch):
+    monkeypatch.setattr(layout, "_TOKEN", None)
+    monkeypatch.setenv("TALKBACK_OGRAF_TOKEN", "from-the-env")
+    assert control_token() == OGrafServer().token == OGrafClient(None).token == "from-the-env"
+    monkeypatch.setattr(layout, "_TOKEN", None)
+    monkeypatch.delenv("TALKBACK_OGRAF_TOKEN")
+    made = control_token()
+    assert len(made) >= 32 and control_token() == made == OGrafServer().token == OGrafClient(None).token

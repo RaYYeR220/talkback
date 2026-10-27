@@ -7,7 +7,14 @@ import threading
 import time
 
 from talkback.ograf.spec import api_validator, server_api
-from talkback.schemas.models import Claim, ClaimKind, Cue, TerritoryVerdict, Verdict
+from talkback.schemas.models import Claim, ClaimKind, Cue, Fact, TerritoryVerdict, Verdict
+
+
+def make_fact(fact_id="F-1", *, metric="player.pressures", value=14.0, unit="count", window=(32 * 60_000, 41 * 60_000),
+              n=14) -> Fact:
+    """A Stats Desk fact; make_cue's claim cites F-1."""
+    return Fact(id=fact_id, match_id="F01", metric=metric, subject="C02-P09", value=value, unit=unit, window=window,
+                sample_size=n, evidence=[], computed_at=window[1])
 
 
 def make_cue(template="stat_card", *, text="Okafor has 14 pressures in the final third.", audience="analyst",

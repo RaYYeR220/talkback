@@ -3,14 +3,15 @@ import json
 import pytest
 from jsonschema import Draft202012Validator
 
-from talkback.ograf.graphics_op import GAP_MS, PREROLL_MS, TEMPLATES, GraphicAction, GraphicsOp, _clock, is_rtl
-from talkback.ograf.layout import Layer
+from talkback.ograf.graphics_op import GAP_MS, PREROLL_MS, GraphicAction, GraphicsOp, _clock, is_rtl, metric_label
+from talkback.ograf.layout import OUTPUTS, Layer
 from talkback.ograf.spec import GRAPHICS_DIR
 from talkback.schemas.models import MatchState, Verdict
-from tests.ograf.support import make_cue
+from tests.ograf.support import make_cue, make_fact
 
 NOW = 60_000
 ARABIC = "أوكافور على بُعد هدف واحد."
+FACTS = [make_fact()]
 
 
 @pytest.fixture
@@ -31,7 +32,7 @@ def schema(gid):
 
 
 def test_in_time_is_now_plus_delay_and_out_time_is_the_template_duration(op):
-    actions = op.plan(make_cue("stat_card", created_t=NOW), "uk", now_t=NOW, delay_ms=2_000)
+    actions = op.plan(make_cue("stat_card", created_t=NOW), "uk", now_t=NOW, delay_ms=2_000, evidence=FACTS)
     assert [a.action for a in actions] == ["load", "play", "stop"]
     load, play, stop = actions
     assert {a.renderer_id for a in actions} == {"uk"} and {a.layer for a in actions} == {Layer.CARD}
@@ -45,11 +46,12 @@ def test_in_time_is_now_plus_delay_and_out_time_is_the_template_duration(op):
 
 @pytest.mark.parametrize(("template", "graphic", "duration"), [
     ("lower_third", "talkback-lower-third", 6_000), ("stat_card", "talkback-stat-card", 8_000),
-    ("story_card", "talkback-story-card", 9_000), ("counterfactual_card", "talkback-counterfactual-card", 10_000),
-    ("table_swing", "talkback-table-swing", 8_000), ("player_tag", "talkback-player-tag", 5_000),
+    ("story_card", "talkback-story-card", 9_000), ("player_tag", "talkback-player-tag", 5_000),
+    # their own figures have no source Clearance checked, so they show the cited fact instead
+    ("counterfactual_card", "talkback-stat-card", 8_000), ("table_swing", "talkback-stat-card", 8_000),
 ])
 def test_template_mapping(op, template, graphic, duration):
-    play = by(op.plan(make_cue(template), "uk", NOW), "play")[0]
+    play = by(op.plan(make_cue(template), "uk", NOW, evidence=FACTS), "play")[0]
     assert play.graphic_id == graphic and play.until_ms - play.at_ms == duration
 
 
@@ -77,33 +79,33 @@ def test_stale_cue_is_dropped(op):
 
 
 def test_higher_priority_pre_empts_the_layer(op):
-    stat = op.plan(make_cue("stat_card", cue_id="S"), "uk", NOW)
-    cf = op.plan(make_cue("counterfactual_card", cue_id="C", created_t=NOW + 2_000), "uk", NOW + 2_000)
-    assert cf[0].action == "stop" and cf[0].key == stat[0].key and cf[0].at_ms == NOW + 2_000
-    stat_stops = [a for a in op.pending if a.key == stat[0].key and a.action == "stop"]
-    assert stat_stops == [cf[0]], "the stat card's own out-cue is replaced by the pre-emption"
-    play = by(cf, "play")[0]
+    lower = op.plan(make_cue("lower_third", cue_id="S"), "uk", NOW)
+    story = op.plan(make_cue("story_card", cue_id="C", created_t=NOW + 2_000), "uk", NOW + 2_000)
+    assert story[0].action == "stop" and story[0].key == lower[0].key and story[0].at_ms == NOW + 2_000
+    lower_stops = [a for a in op.pending if a.key == lower[0].key and a.action == "stop"]
+    assert lower_stops == [story[0]], "the lower third's own out-cue is replaced by the pre-emption"
+    play = by(story, "play")[0]
     assert play.at_ms == NOW + 2_000
     ordered = [a for a in op.pending if a.at_ms == NOW + 2_000]
     assert [a.action for a in ordered] == ["stop", "load", "play"]
 
 
 def test_lower_priority_waits_for_the_layer(op):
-    op.plan(make_cue("counterfactual_card", cue_id="C"), "uk", NOW)
-    stat = op.plan(make_cue("stat_card", cue_id="S", created_t=NOW + 1_000), "uk", NOW + 1_000)
-    assert by(stat, "play")[0].at_ms == NOW + 10_000 + GAP_MS
-    assert not any(a.action == "stop" and a.cue_id == "C" and a.at_ms < NOW + 10_000 for a in op.pending)
+    op.plan(make_cue("story_card", cue_id="C"), "uk", NOW)
+    lower = op.plan(make_cue("lower_third", cue_id="S", created_t=NOW + 1_000), "uk", NOW + 1_000)
+    assert by(lower, "play")[0].at_ms == NOW + 9_000 + GAP_MS
+    assert not any(a.action == "stop" and a.cue_id == "C" and a.at_ms < NOW + 9_000 for a in op.pending)
 
 
 def test_equal_priority_waits_too(op):
-    op.plan(make_cue("stat_card", cue_id="A"), "uk", NOW)
-    b = op.plan(make_cue("stat_card", cue_id="B"), "uk", NOW + 500)
+    op.plan(make_cue("stat_card", cue_id="A"), "uk", NOW, evidence=FACTS)
+    b = op.plan(make_cue("stat_card", cue_id="B"), "uk", NOW + 500, evidence=FACTS)
     assert by(b, "play")[0].at_ms == NOW + 8_000 + GAP_MS
 
 
 def test_a_waiting_cue_is_dropped_once_it_would_air_stale(op):
-    op.plan(make_cue("counterfactual_card", cue_id="C"), "uk", NOW)
-    late = make_cue("stat_card", cue_id="S", created_t=NOW, max_age_ms=5_000)
+    op.plan(make_cue("story_card", cue_id="C"), "uk", NOW)
+    late = make_cue("lower_third", cue_id="S", created_t=NOW, max_age_ms=5_000)
     assert op.plan(late, "uk", NOW + 1_000) == []
     assert "busy" in op.log[-1]
 
@@ -111,7 +113,7 @@ def test_a_waiting_cue_is_dropped_once_it_would_air_stale(op):
 def test_layers_are_independent_and_so_are_outputs(op):
     cue = make_cue("story_card", verdicts={"uk": Verdict.ON_AIR, "es": Verdict.ON_AIR})
     story = op.plan(cue, "uk", NOW)
-    stat = op.plan(make_cue("stat_card", cue_id="S"), "uk", NOW)
+    stat = op.plan(make_cue("stat_card", cue_id="S"), "uk", NOW, evidence=FACTS)
     es = op.plan(cue, "es", NOW)
     assert by(story, "play")[0].layer == Layer.LOWER and by(stat, "play")[0].layer == Layer.CARD
     assert by(stat, "play")[0].at_ms == NOW and by(es, "play")[0].renderer_id == "es"
@@ -119,8 +121,8 @@ def test_layers_are_independent_and_so_are_outputs(op):
 
 
 def test_pre_empting_an_unaired_booking_cancels_it(op):
-    op.plan(make_cue("stat_card", cue_id="S"), "uk", NOW, delay_ms=9_000)
-    op.plan(make_cue("counterfactual_card", cue_id="C"), "uk", NOW)
+    op.plan(make_cue("lower_third", cue_id="S"), "uk", NOW, delay_ms=5_000)
+    op.plan(make_cue("story_card", cue_id="C"), "uk", NOW)
     assert [a for a in op.pending if a.cue_id == "S"] == [], "never loaded, so nothing to stop"
 
 
@@ -135,6 +137,31 @@ def test_presenter_cues_go_to_the_ifb_strip_until_they_expire(op):
     assert data["cueId"] == "P1"
 
 
+LINES = {"br": "Okafor tem 14 pressões.", "es": "Okafor suma 14 presiones.", "kids": "Okafor is pressing hard!",
+         "mena": ARABIC, "uk": "Okafor has 14 pressures."}
+
+
+def verdicts(**overrides):
+    """Every territory ON_AIR with its own line, in the order Clearance writes them (br first)."""
+    return {t: overrides.get(t, (Verdict.ON_AIR, LINES[t])) for t in LINES}
+
+
+def test_the_presenter_strip_follows_the_uk_verdict_and_line(op):
+    cue = make_cue("stat_card", audience="presenter", cue_id="P1", verdicts=verdicts())
+    planned = [a for t in cue.verdicts for a in op.plan(cue, t, NOW)]
+    loads = [a for a in planned if a.action == "load"]
+    assert [(a.renderer_id, a.data["text"], a.data["lang"]) for a in loads] == [("presenter", LINES["uk"], "en")]
+    killed = make_cue("stat_card", audience="presenter", cue_id="P2", verdicts=verdicts(uk=Verdict.KILLED))
+    assert [a for t in killed.verdicts for a in GraphicsOp().plan(killed, t, NOW)] == []
+
+
+def test_the_world_feed_airs_what_uk_cleared(op):
+    load = op.plan(make_cue("lower_third", verdicts=verdicts()), "world", NOW)[0]
+    assert (load.renderer_id, load.data["line"], load.data["lang"]) == ("world", LINES["uk"], "en")
+    held = make_cue("lower_third", cue_id="Q-2", verdicts=verdicts(uk=Verdict.HOLD_FOR_PRODUCER))
+    assert op.plan(held, "world", NOW) == [] and "not ON_AIR" in op.log[-1]
+
+
 def test_spoken_ifb_is_retired_now(op):
     op.plan(make_cue(audience="presenter", cue_id="P1", max_age_ms=20_000), "uk", NOW)
     stop = op.retire("P1", NOW + 3_000)
@@ -146,6 +173,25 @@ def test_a_newer_ifb_replaces_the_current_one(op):
     op.plan(make_cue(audience="presenter", cue_id="P1"), "uk", NOW)
     newer = op.plan(make_cue(audience="presenter", cue_id="P2"), "uk", NOW + 4_000)
     assert newer[0].action == "stop" and newer[0].cue_id == "P1" and by(newer, "play")[0].at_ms == NOW + 4_000
+
+
+def test_what_a_viewer_sees_lasts_wall_clock_time_at_any_playout_speed():
+    op = GraphicsOp(speed=10.0)
+    load, play, _ = op.plan(make_cue("lower_third", max_age_ms=120_000), "uk", NOW, delay_ms=20_000)
+    assert load.at_ms == NOW + 20_000 - PREROLL_MS * 10 and play.until_ms - play.at_ms == 6_000 * 10
+    ifb = op.plan(make_cue(audience="presenter", cue_id="P1", max_age_ms=20_000), "uk", NOW)[0]
+    assert ifb.data["countdownMs"] == 2_000, "the strip counts down in wall-clock time"
+
+
+def test_rebase_moves_every_booking_and_frees_finished_ones(op):
+    op.plan(make_cue("lower_third", cue_id="S"), "uk", NOW, delay_ms=5_000)
+    op.plan(make_cue("story_card", cue_id="T"), "uk", NOW - 10_000)
+    op.due(NOW)
+    op.rebase(-NOW)
+    assert [(a.cue_id, a.action, a.at_ms) for a in op.pending] == [("S", "load", 4_500), ("S", "play", 5_000),
+                                                                    ("S", "stop", 11_000)]
+    assert op.plan(make_cue("lower_third", cue_id="S"), "uk", 1_000) == [], "still booked"
+    assert op.plan(make_cue("story_card", cue_id="T", created_t=1_000), "uk", 1_000), "its earlier airing is over"
 
 
 def test_unknown_template_falls_back_to_a_lower_third(op):
@@ -183,58 +229,112 @@ def test_match_clock():
     assert _clock(state(t=93 * 60_000, period=2)) == (90, 4)
 
 
-WRITER_DATA = {
-    "stat_card": {"metric": "Pressures in the final third", "value": 14, "player": "Tomas Okafor",
-                  "league_avg": 9.0, "ratio": 0.7, "compare_ratio": 0.45, "n": 14, "window_from": 32, "window_to": 41,
-                  "caption": "UNCLEARED"},
-    "story_card": {"kind": "milestone_goals", "title": "One away from 100", "context": "CAL v ASH · 63′"},
-    "counterfactual_card": {"metric": "Win probability", "baseline": 41.2, "counterfactual": 63.0, "effect": -22,
-                            "ci_low": -34, "ci_high": -9, "n": 400},
-    "table_swing": {"team": "Westmarsh Town", "metric": "Relegation chance", "before": 31, "after": 54,
-                    "tone": "bad", "cause": "IRO 1–0 KES · 71′", "club_color": "#0F6B4F"},
-    "lower_third": {"subject": "Tomas Okafor", "club": "Calder Vale"},
-    "player_tag": {"player": "Okafor", "shirt": 9, "speed": 31.4, "x": 1.7},
+# Free Writer output that Clearance never sees: none of it may reach a graphic.
+HOSTILE = {
+    "value": "73%", "label": "dominant, bookies' favourites", "title": "Robbed!", "headline": "Robbed!",
+    "kind": "farewell", "player": "Mystery Man", "name": "Mystery Man", "subject": "Mystery Man", "club": "BAD",
+    "club_color": "#ff0000", "shirt": 99, "x": 0.37, "speed": 88.8, "n": 7777, "window_from": 58, "window_to": 87,
+    "baseline": 61.5, "counterfactual": 23.5, "effect": -43, "ci_low": -51, "ci_high": -36, "caption": "UNCLEARED",
+    "text": "UNCLEARED", "line": "UNCLEARED", "metric": "Bookies' odds", "cueId": "FAKE", "countdownMs": 123456,
+    "priority": "urgent", "tone": "good",
 }
+CUE_TEMPLATES = ["stat_card", "story_card", "lower_third", "counterfactual_card", "table_swing", "player_tag",
+                 "mystery_card"]
 
 
-@pytest.mark.parametrize("template", sorted(WRITER_DATA))
+def _values(data):
+    for v in data.values():
+        if isinstance(v, list):
+            for row in v:
+                yield from _values(row)
+        else:
+            yield v
+
+
+@pytest.mark.parametrize(("template", "audience"),
+                         [(t, "analyst") for t in CUE_TEMPLATES] + [("stat_card", "presenter")])
+def test_cue_data_never_reaches_a_graphic(template, audience):
+    numbers = [v for v in HOSTILE.values() if isinstance(v, (int, float))]
+    words = [v.lower() for v in HOSTILE.values() if isinstance(v, str)] + [str(abs(v)) for v in numbers]
+    cue = make_cue(template, audience=audience, data=HOSTILE, verdicts={"uk": Verdict.ON_AIR, "kids": Verdict.ON_AIR})
+    loads = [a for t in ("uk", "kids") for a in GraphicsOp().plan(cue, t, NOW, evidence=FACTS) if a.action == "load"]
+    assert loads
+    for load in loads:
+        for v in _values(load.data):
+            if isinstance(v, str):
+                assert not [w for w in words if w in v.lower()], (load.graphic_id, v)
+            elif not isinstance(v, bool):
+                assert v not in numbers, (load.graphic_id, v)
+
+
+@pytest.mark.parametrize("template", CUE_TEMPLATES)
 def test_shaped_data_validates_against_the_graphic_schema(op, template):
-    cue = make_cue(template, data=WRITER_DATA[template])
-    data = op.plan(cue, "uk", NOW)[0].data
-    gid = TEMPLATES[template].graphic_id
-    assert list(Draft202012Validator(schema(gid)).iter_errors(data)) == []
-    assert set(data) <= set(schema(gid)["properties"])
-    assert data["dir"] == "ltr" and data["lang"] == "en"
+    load = op.plan(make_cue(template, data=HOSTILE), "uk", NOW, evidence=FACTS)[0]
+    assert list(Draft202012Validator(schema(load.graphic_id)).iter_errors(load.data)) == []
+    assert set(load.data) <= set(schema(load.graphic_id)["properties"])
+    assert load.data["dir"] == "ltr" and load.data["lang"] == "en"
 
 
-def test_shaping_maps_writer_keys(op):
-    plan = lambda t: op.plan(make_cue(t, data=WRITER_DATA[t], cue_id=t), "uk", NOW)[0].data
-    stat = plan("stat_card")
-    assert (stat["label"], stat["value"], stat["subject"], stat["compareValue"]) == (
-        "Pressures in the final third", "14", "Tomas Okafor", "9")
-    assert stat["evidence"] == "n=14 · 32′–41′"
-    assert stat["caption"] == "Okafor has 14 pressures in the final third.", "the cleared line, never cue.data text"
-    op2 = GraphicsOp()
-    story = op2.plan(make_cue("story_card", data=WRITER_DATA["story_card"]), "uk", NOW)[0].data
-    assert story["kind"] == "MILESTONE" and story["line"].startswith("Okafor")
-    cf = GraphicsOp().plan(make_cue("counterfactual_card", data=WRITER_DATA["counterfactual_card"]), "uk", NOW)[0].data
-    assert (cf["asPlayed"], cf["ifNot"], cf["effect"]) == (41.2, 63.0, "−22 pts")
-    assert cf["interval"] == "95% interval −34 to −9" and cf["evidence"] == "n=400"
-    swing = GraphicsOp().plan(make_cue("table_swing", data=WRITER_DATA["table_swing"]), "uk", NOW)[0].data
-    assert swing["club"] == "Westmarsh Town" and swing["causedBy"].startswith("IRO") and swing["clubColor"] == "#0f6b4f"
-    tag = GraphicsOp().plan(make_cue("player_tag", data=WRITER_DATA["player_tag"]), "uk", NOW)[0].data
-    assert tag["number"] == "9" and tag["x"] == 1 and tag["name"] == "Okafor"
+def test_stat_card_shows_the_cited_fact_with_a_label_made_in_code(op):
+    uncited = make_fact("F-other", metric="team.xg", value=2.5, unit="xG")
+    load = op.plan(make_cue("stat_card", data=HOSTILE), "uk", NOW, evidence=[uncited, *FACTS])[0]
+    assert load.data == {"label": "Pressures", "value": "14", "evidence": "n=14 · 33′–41′",
+                         "caption": "Okafor has 14 pressures in the final third.", "dir": "ltr", "lang": "en"}
+
+
+@pytest.mark.parametrize(("metric", "unit", "value", "shown", "unit_shown"), [
+    ("player.pressures", "count", 14.0, "14", None), ("player.sprints", "count", 14.6, "15", None),
+    ("player.distance_km", "km", 10.26, "10.3", "km"), ("player.top_speed_kmh", "km/h", 33.2, "33.2", "km/h"),
+    ("event.pass_distance_m", "m", 40.0, "40", "m"), ("team.xg", "xG", 0.3331, "0.33", "xG"),
+    ("team.possession", "ratio", 0.5, "0.5", None), ("team.momentum", "xT", 1.0, "1", "xT"),
+    ("team.win_probability", "probability", -0.001, "0", None),
+])
+def test_stat_card_value_is_at_broadcast_precision(op, metric, unit, value, shown, unit_shown):
+    fact = make_fact(metric=metric, unit=unit, value=value)
+    data = op.plan(make_cue("stat_card"), "uk", NOW, evidence=[fact])[0].data
+    assert data["value"] == shown and data.get("unit") == unit_shown
+
+
+def test_metric_labels_are_readable():
+    assert metric_label("player.top_speed_kmh") == "Top speed"
+    assert metric_label("team.shots_on_target") == "Shots on target"
+    assert metric_label("team.xg") == "Expected goals" and metric_label("team.ppda") == "PPDA"
+
+
+@pytest.mark.parametrize("template", ["stat_card", "counterfactual_card", "table_swing"])
+def test_a_card_without_a_cited_fact_goes_out_as_a_lower_third(template):
+    cue = make_cue(template, data=HOSTILE)
+    load = GraphicsOp().plan(cue, "uk", NOW, evidence=[make_fact("F-uncited")])[0]
+    assert load.graphic_id == "talkback-lower-third" and load.data == {"line": cue.text, "dir": "ltr", "lang": "en"}
+
+
+@pytest.mark.parametrize(("template", "field"),
+                         [("lower_third", "line"), ("story_card", "line"), ("player_tag", "name")])
+def test_text_graphics_carry_the_cleared_localised_line(op, template, field):
+    line = "Okafor suma 14 presiones en el último tercio."
+    cue = make_cue(template, data=HOSTILE, verdicts={"es": (Verdict.ON_AIR, line)})
+    data = op.plan(cue, "es", NOW, evidence=FACTS)[0].data
+    assert data[field] == line and data["lang"] == "es"
+    assert data.get("kind", "STORY") == "STORY"
 
 
 def test_localised_rtl_text_flips_the_graphic(op):
-    cue = make_cue("story_card", data={"kind": "farewell"}, verdicts={"mena": (Verdict.ON_AIR, ARABIC)})
+    cue = make_cue("story_card", verdicts={"mena": (Verdict.ON_AIR, ARABIC)})
     data = op.plan(cue, "mena", NOW, delay_ms=120_000)[0].data
-    assert data["line"] == ARABIC and data["dir"] == "rtl" and data["lang"] == "ar" and data["kind"] == "FAREWELL"
+    assert data["line"] == ARABIC and data["dir"] == "rtl" and data["lang"] == "ar" and data["kind"] == "STORY"
     assert is_rtl(ARABIC) and not is_rtl("14 pressures") and not is_rtl("")
 
 
+def test_br_has_its_own_portuguese_output(op):
+    line = "Okafor tem 14 pressões no último terço."
+    cue = make_cue("lower_third", verdicts={"br": (Verdict.ON_AIR, line)})
+    load = op.plan(cue, "br", NOW)[0]
+    assert "br" in OUTPUTS and load.renderer_id == "br"
+    assert load.data["line"] == line and load.data["lang"] == "pt" and load.data["dir"] == "ltr"
+
+
 def test_due_hands_out_actions_in_time_order(op):
-    op.plan(make_cue("stat_card"), "uk", NOW, delay_ms=1_000)
+    op.plan(make_cue("stat_card"), "uk", NOW, delay_ms=1_000, evidence=FACTS)
     assert op.due(NOW) == []
     first = op.due(NOW + 1_000)
     assert [a.action for a in first] == ["load", "play"]

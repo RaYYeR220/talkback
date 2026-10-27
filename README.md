@@ -83,7 +83,7 @@ flowchart LR
   A & L --> B
   W --> M[Foundry models]
   C --> CS[Content Safety]
-  T --> O[OGraf Server API] --> R[renderer outputs<br/>world · uk · es · mena · kids · presenter]
+  T --> O[OGraf Server API] --> R[renderer outputs<br/>world · uk · es · mena · kids · br · presenter]
   T --> CO[(Cosmos DB<br/>claim ledger)]
   T --> AI[App Insights / Foundry tracing]
   T --> X[MCP server]
@@ -149,7 +149,9 @@ Every rule is code, and every failure is a refusal.
   line). Works from GitHub Copilot agent mode or any MCP client.
 * **OGraf** — `/ograf/v1` is an EBU OGraf v1 Server API; `/ograf/renderer/?renderer=uk` is a renderer page
   usable as an HTML source in a vision mixer. The graphics packages in `ograf/graphics` run on any OGraf
-  renderer.
+  renderer. Reading the API and the renderer pages is public; calls that change graphics need
+  `Authorization: Bearer $TALKBACK_OGRAF_TOKEN` (unset, the service makes a token per process for its own
+  Graphics Op).
 * **A2A** — the Archivist and the Lab publish agent cards and answer A2A v1.0 JSON-RPC.
 * **Schemas** — `docs/schemas` has the JSON Schema of every shared object (Event, Fact, Storyline, Claim,
   Cue, verdicts). Territory packs are plain YAML.

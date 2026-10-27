@@ -4,16 +4,21 @@ There is one renderer per output. The server owns the render state (graphic inst
 layer). Renderer pages are viewports: they run each command on the graphic's web component and
 answer with the graphic's return payload, which the server hands back to the controller. A page
 that connects late, or reconnects, is replayed the current state.
+
+Reading the API, the renderer pages and their sockets are public: the web console embeds them.
+Anything that changes graphics needs `Authorization: Bearer <token>` (see layout.control_token).
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import functools
 import itertools
 import json
 import logging
 import mimetypes
+import secrets
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -21,13 +26,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from talkback.ograf.layout import LAYERS, OUTPUTS
+from talkback.ograf.layout import LAYERS, OUTPUTS, control_token
 from talkback.ograf.spec import GRAPHICS_DIR, RENDERER_DIR, manifest_validator
 
 log = logging.getLogger(__name__)
@@ -39,6 +44,10 @@ mimetypes.add_type("text/javascript", ".js")
 # -1 is the spec's own encoding of "not on a step" (target = -1 + delta from the start state).
 END_STEP = -1
 OFFLINE = "No renderer page connected; state kept and replayed on connect"
+MAX_INSTANCES = 64  # per renderer; the oldest go first
+# A page answers within the timeout or it is a miss. One that misses this many in a row is disconnected
+# (it reconnects and gets the state replayed), and a call never waits for more than the first answer.
+MAX_MISSES = 3
 RENDERER_ACTIONS = [{
     "id": "identify", "name": "Identify",
     "description": "Show the renderer id on every connected page for a few seconds", "schema": None,
@@ -197,8 +206,10 @@ class GraphicError(Exception):
 class _Page:
     """One connected renderer page, spoken to in JSON-RPC 2.0."""
 
-    def __init__(self, send: Callable[[str], Awaitable[None]]):
+    def __init__(self, send: Callable[[str], Awaitable[None]], hangup: Callable[[], Awaitable[None]] | None = None):
         self._send = send
+        self.hangup = hangup
+        self.misses = 0
         self._ids = itertools.count(1)
         self._pending: dict[int, asyncio.Future] = {}
 
@@ -250,15 +261,20 @@ class _Renderer:
 
 
 class _Problem(Exception):
-    def __init__(self, status: int, title: str, detail: str = ""):
+    def __init__(self, status: int, title: str, detail: str = "", headers: dict[str, str] | None = None):
         super().__init__(detail or title)
-        self.status, self.title, self.detail = status, title, detail
+        self.status, self.title, self.detail, self.headers = status, title, detail, headers
 
     def response(self) -> JSONResponse:
         body: dict[str, Any] = {"type": "about:blank", "title": self.title, "status": self.status}
         if self.detail:
             body["detail"] = self.detail
-        return JSONResponse(body, status_code=self.status)
+        return JSONResponse(body, status_code=self.status, headers=self.headers)
+
+
+async def _problem_response(_request: Request, problem: Exception) -> JSONResponse:
+    assert isinstance(problem, _Problem)
+    return problem.response()
 
 
 def _problems(fn):
@@ -302,7 +318,8 @@ class OGrafServer:
                  outputs: dict[str, tuple[str, str]] | None = None,
                  layers: dict[int, tuple[str, str]] | None = None,
                  resolution: tuple[int, int] = (1920, 1080), frame_rate: float = 50,
-                 timeout_s: float = 5.0, name: str = "Talkback OGraf Server"):
+                 timeout_s: float = 3.0, name: str = "Talkback OGraf Server", token: str | None = None,
+                 max_instances: int = MAX_INSTANCES):
         self.graphics_dir = Path(graphics_dir)
         self.renderer_dir = Path(renderer_dir)
         self.graphics = load_packages(self.graphics_dir)
@@ -312,8 +329,11 @@ class OGrafServer:
             "resolution": {"width": resolution[0], "height": resolution[1]},
             "frameRate": frame_rate, "accessToPublicInternet": True,
         }
-        self.timeout_s = timeout_s
+        self.timeout_s = timeout_s  # per page; above the 2.5 s a graphic may take to settle its animations
         self.name = name
+        self.token = token or control_token()
+        self.max_instances = max_instances
+        self._watching: set[asyncio.Future] = set()
         self.graphics_url = "/ograf/graphics"
         self.router = self._api_router()
         self.ws_router = self._ws_router()
@@ -321,6 +341,7 @@ class OGrafServer:
     def mount(self, app: FastAPI, prefix: str = "/ograf/v1", base: str = "/ograf") -> None:
         """API at `prefix`, renderer sockets at {base}/ws/{rendererId}, files under {base}/."""
         self.graphics_url = f"{base}/graphics"
+        app.add_exception_handler(_Problem, _problem_response)
         app.include_router(self.router, prefix=prefix)
         app.include_router(self.ws_router, prefix=base)
         app.mount(f"{base}/graphics", StaticFiles(directory=self.graphics_dir), name="ograf-graphics")
@@ -384,39 +405,77 @@ class OGrafServer:
             "params": {**params, "renderType": "realtime", "renderCharacteristics": self.render_characteristics},
         }
 
-    async def _send_all(self, r: _Renderer, method: str, params: dict[str, Any]) -> list[asyncio.Future]:
-        return [await page.request(method, params) for page in list(r.pages)]
+    async def _send_all(self, r: _Renderer, method: str,
+                        params: dict[str, Any]) -> list[tuple[_Page, asyncio.Future]]:
+        return [(page, await page.request(method, params)) for page in list(r.pages)]
 
-    async def _collect(self, futures: list[asyncio.Future]) -> dict[str, Any] | None:
-        """The first page's answer; None when no page is connected."""
-        if not futures:
-            return None
-        results = await asyncio.gather(*(asyncio.wait_for(f, self.timeout_s) for f in futures),
-                                       return_exceptions=True)
-        for res in results:
-            if not isinstance(res, BaseException):
-                return _payload(res)
-        for res in results:
-            if isinstance(res, GraphicError):
-                raise res
-            if isinstance(res, TimeoutError):
-                raise _Problem(500, "Renderer Timeout", f"no answer from the renderer page in {self.timeout_s:g} s")
+    async def _answer(self, r: _Renderer, page: _Page, fut: asyncio.Future) -> tuple[Any, BaseException | None]:
+        """One page's answer within the timeout, counting the page's misses."""
+        try:
+            result = await asyncio.wait_for(fut, self.timeout_s)
+        except TimeoutError as exc:
+            page.misses += 1
+            if page.misses >= MAX_MISSES and page in r.pages:
+                log.warning("renderer %s: disconnecting a page that missed %d answers in a row", r.id, page.misses)
+                self.detach(r.id, page)
+                if page.hangup is not None:
+                    self._watch(page.hangup())
+            return None, exc
+        except (GraphicError, RendererGone) as exc:
+            page.misses = 0
+            return None, exc
+        page.misses = 0
+        return result, None
+
+    def _watch(self, aw: Awaitable[Any]) -> asyncio.Future:
+        task = asyncio.ensure_future(aw)
+        self._watching.add(task)
+        task.add_done_callback(self._watching.discard)
+        return task
+
+    async def _collect(self, r: _Renderer, sent: list[tuple[_Page, asyncio.Future]]) -> dict[str, Any] | None:
+        """The first answer from any page; None when no page is connected. The slower pages are
+        still awaited in the background, so a silent one is noticed without holding up the call."""
+        pending = {self._watch(self._answer(r, page, fut)) for page, fut in sent}
+        failures: list[BaseException] = []
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                result, exc = task.result()
+                if exc is None:
+                    return _payload(result)
+                failures.append(exc)
+        for exc in failures:
+            if isinstance(exc, GraphicError):
+                raise exc
+        if any(isinstance(exc, TimeoutError) for exc in failures):
+            raise _Problem(500, "Renderer Timeout", f"no answer from the renderer page in {self.timeout_s:g} s")
         return None
 
     async def _run(self, r: _Renderer, method: str, params: dict[str, Any],
                    mutate: Callable[[], None] = lambda: None) -> dict[str, Any] | None:
         async with r.lock:
             mutate()
-            futures = await self._send_all(r, method, params)
+            sent = await self._send_all(r, method, params)
         try:
-            return await self._collect(futures)
+            return await self._collect(r, sent)
         except GraphicError as exc:
             raise _Problem(550, "Graphic Error", f"{method}() threw: {exc}") from exc
 
-    async def attach(self, renderer_id: str, send: Callable[[str], Awaitable[None]]) -> _Page:
-        """Register a page and replay the renderer's current state to it."""
+    async def _forget(self, r: _Renderer, ids: list[str]) -> None:
+        """Drop instances from the render state and tell the pages, without waiting for answers."""
+        async with r.lock:
+            for iid in ids:
+                r.instances.pop(iid, None)
+            for page in list(r.pages):
+                with contextlib.suppress(Exception):  # a page that cannot be told is gone anyway
+                    await page.notify("clear", {"graphicInstanceIds": ids})
+
+    async def attach(self, renderer_id: str, send: Callable[[str], Awaitable[None]],
+                     hangup: Callable[[], Awaitable[None]] | None = None) -> _Page:
+        """Register a page and replay the renderer's current state to it. hangup closes its socket."""
         r = self.renderers[renderer_id]
-        page = _Page(send)
+        page = _Page(send, hangup)
         async with r.lock:
             await page.notify("hello", {"rendererId": r.id, "renderCharacteristics": self.render_characteristics})
             for inst in r.instances.values():
@@ -442,7 +501,12 @@ class OGrafServer:
                 await websocket.close(code=4404)
                 return
             await websocket.accept()
-            page = await self.attach(renderer_id, websocket.send_text)
+
+            async def hangup() -> None:
+                with contextlib.suppress(Exception):  # already closed
+                    await websocket.close(code=1013)
+
+            page = await self.attach(renderer_id, websocket.send_text, hangup)
             try:
                 while True:
                     page.receive(await websocket.receive_text())
@@ -455,8 +519,19 @@ class OGrafServer:
 
     # -- the Server API
 
+    def _authorize(self, request: Request) -> None:
+        """Reading is public; anything that changes graphics needs the bearer token."""
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+        scheme, _, given = request.headers.get("authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not given.strip():
+            raise _Problem(401, "Unauthorized", "changing graphics needs Authorization: Bearer <token>",
+                           headers={"WWW-Authenticate": "Bearer"})
+        if not secrets.compare_digest(given.strip().encode(), self.token.encode()):
+            raise _Problem(403, "Forbidden", "wrong bearer token")
+
     def _api_router(self) -> APIRouter:
-        router = APIRouter(tags=["OGraf Server API"])
+        router = APIRouter(tags=["OGraf Server API"], dependencies=[Depends(self._authorize)])
 
         @router.get("")
         @router.get("/")
@@ -541,15 +616,14 @@ class OGrafServer:
                 raise _Problem(404, "Not Found", f"no Graphic {body.graphicId!r}")
             if not g.manifest["supportsRealTime"]:
                 raise _Problem(400, "Bad Request", f"{g.id} does not support real-time rendering")
+            if oldest := list(r.instances)[:max(0, len(r.instances) + 1 - self.max_instances)]:
+                await self._forget(r, oldest)
             inst = Instance(id=f"gi-{uuid.uuid4().hex[:12]}", graphic=g, layer=layer, data=body.params.data)
             message = self._load_message(inst, body.params.model_dump())
             try:
                 res = await self._run(r, "load", message, lambda: r.instances.__setitem__(inst.id, inst))
             except _Problem:
-                r.instances.pop(inst.id, None)
-                async with r.lock:
-                    for page in list(r.pages):
-                        await page.notify("clear", {"graphicInstanceIds": [inst.id]})
+                await self._forget(r, [inst.id])
                 raise
             res = res or {"statusCode": 200, "statusMessage": OFFLINE}
             return {**res, "graphicInstanceId": inst.id}
@@ -632,7 +706,7 @@ def create_app(server: OGrafServer | None = None, **kwargs: Any) -> FastAPI:
     """A standalone app: the API under /ograf/v1, renderer pages at /ograf/renderer/?renderer=<id>."""
     app = FastAPI(title="Talkback OGraf Server")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "PUT", "POST", "HEAD", "OPTIONS", "DELETE"],
-                       allow_headers=["Content-Type", "Accept"], max_age=3600)
+                       allow_headers=["Content-Type", "Accept", "Authorization"], max_age=3600)
     server = server or OGrafServer(**kwargs)
     server.mount(app)
     app.state.ograf = server

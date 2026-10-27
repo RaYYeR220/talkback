@@ -2,8 +2,10 @@
 
 The controller talks to the server only through the standard OGraf Server API, so it can drive
 any compliant server. Times are match-clock milliseconds; a territory's in-time is now plus its
-broadcast delay budget. Each layer holds one graphic at a time: a higher-priority cue pre-empts,
-anything else waits for the layer (or is dropped once it would air stale).
+broadcast delay budget. What a viewer sees (how long a graphic stays up, the preroll, the gap
+between graphics) is wall-clock time, stretched into match time by the playout speed. Each layer
+holds one graphic at a time: a higher-priority cue pre-empts, anything else waits for the layer
+(or is dropped once it would air stale).
 """
 
 from __future__ import annotations
@@ -11,6 +13,8 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -19,9 +23,9 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from talkback.ograf.layout import OUTPUTS, PRESENTER, Layer, render_target
+from talkback.ograf.layout import OUTPUTS, PRESENTER, Layer, control_token, render_target
 from talkback.ograf.spec import GRAPHICS_DIR
-from talkback.schemas.models import Cue, MatchState, Verdict
+from talkback.schemas.models import ClaimKind, Cue, Fact, MatchState, Verdict
 
 ActionKind = Literal["load", "update", "play", "stop"]
 PREROLL_MS = 500
@@ -66,35 +70,63 @@ TEMPLATES: dict[str, Template] = {
     "ifb": Template(graphic_id="talkback-ifb", layer=Layer.IFB, priority=50, duration_ms=None, replace_equal=True),
 }
 FALLBACK_TEMPLATE = "lower_third"
+# Their own figures (as played / if not, before / after) have no source Clearance checked, so they
+# are drawn as a stat card from the cited fact.
+AS_STAT_CARD = ("counterfactual_card", "table_swing")
 
-STORY_BADGES = {
-    "milestone_goals": "MILESTONE", "manager_100": "MILESTONE", "farewell": "FAREWELL", "debut": "DEBUT",
-    "former_club": "FORMER CLUB", "unbeaten_run": "STREAK", "relegation_six_pointer": "SIX-POINTER",
-    "golden_boot": "GOLDEN BOOT", "clean_sheet_record": "RECORD", "injury_return": "RETURN", "siblings": "BROTHERS",
-}
 IFB_LABELS = {"story_card": "STORY", "stat_card": "STAT", "counterfactual_card": "WHAT IF", "table_swing": "TABLE",
               "lower_third": "NAME", "player_tag": "PLAYER"}
-LANGUAGES = {"world": "en", "uk": "en", "kids": "en", "es": "es", "mena": "ar"}
+LANGUAGES = {"world": "en", "uk": "en", "kids": "en", "es": "es", "mena": "ar", "br": "pt"}
+# Outputs with no clearance of their own air uk's verdict and uk's line: the international English
+# feed, and the presenter strip (presenter cues are planned only from the uk verdict).
+FOLLOWS = {"world": "uk", PRESENTER: "uk"}
 
-# The cleared, localised line always fills the graphic's free-text field; cue.data only supplies
-# labels and numbers.
+# Graphics carry only what Clearance passed or code computed: the cleared, localised line in the
+# free-text field, figures from the facts the line cites, and labels made here. cue.data is free
+# Writer output that no check ever sees, so it is never read.
 TEXT_FIELD = {
     "talkback-lower-third": "line", "talkback-stat-card": "caption", "talkback-story-card": "line",
     "talkback-counterfactual-card": "caption", "talkback-table-swing": "caption", "talkback-ifb": "text",
+    "talkback-player-tag": "name",
 }
-ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
-    "talkback-lower-third": {"name": ("subject", "player"), "kicker": ("club", "team", "role")},
-    "talkback-stat-card": {"subject": ("player", "team"), "label": ("metric", "stat"),
-                           "compareLabel": ("baseline_label",), "compareValue": ("baseline", "league_avg")},
-    "talkback-story-card": {"title": ("headline",), "kind": ("storyline_kind", "badge")},
-    "talkback-counterfactual-card": {"asPlayed": ("baseline", "actual"), "ifNot": ("counterfactual", "cf")},
-    "talkback-table-swing": {"club": ("team", "subject"), "causedBy": ("cause", "match")},
-    "talkback-player-tag": {"name": ("player", "subject"), "number": ("shirt",)},
-}
+# Decimals a commentator would say, by unit (the Writer is offered facts at the same precision).
+SPOKEN_DECIMALS = {"count": 0, "km": 1, "km/h": 1, "m": 1}
+UNITLESS = ("count", "ratio", "probability")
+METRIC_LABELS = {"xg": "Expected goals", "ppda": "PPDA", "xt_added": "Threat added", "distance_km": "Distance covered",
+                 "top_speed_kmh": "Top speed", "shot_speed_kmh": "Shot speed", "pass_distance_m": "Pass distance",
+                 "avg_pass_difficulty": "Average pass difficulty"}
 
 
-def _norm(key: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", key.lower())
+def metric_label(metric: str) -> str:
+    """A caption for a Stats Desk metric: 'player.top_speed_kmh' -> 'Top speed'."""
+    name = metric.rsplit(".", 1)[-1]
+    return METRIC_LABELS.get(name, name.replace("_", " ").capitalize())
+
+
+def broadcast_value(fact: Fact) -> str:
+    """The fact's value at broadcast precision: '0.33' xG, '14' pressures, '10.3' km."""
+    text = f"{fact.value:.{SPOKEN_DECIMALS.get(fact.unit, 2)}f}"
+    text = text.rstrip("0").rstrip(".") if "." in text else text
+    return "0" if text == "-0" else text
+
+
+def _minutes(window: tuple[int, int]) -> str:
+    return f"{window[0] // 60_000 + 1}′–{max(1, -(-window[1] // 60_000))}′"
+
+
+def cited_fact(cue: Cue, evidence: Iterable[Fact]) -> Fact | None:
+    """The fact behind the cue's first number (or, failing that, the first fact it cites)."""
+    facts = {f.id: f for f in evidence}
+    claims = sorted(cue.claims, key=lambda c: c.kind != ClaimKind.numeric)
+    return next((facts[ref] for c in claims for ref in c.refs if ref in facts), None)
+
+
+def card_template(template: str, fact: Fact | None) -> Template:
+    """A card needs a cited fact to show; without one the cleared line goes out as a lower third."""
+    name = "stat_card" if template in AS_STAT_CARD else template
+    if name not in TEMPLATES or name == "ifb" or (name == "stat_card" and fact is None):
+        name = FALLBACK_TEMPLATE
+    return TEMPLATES[name]
 
 
 def is_rtl(text: str) -> bool:
@@ -109,11 +141,6 @@ def is_rtl(text: str) -> bool:
 
 def _num_text(v: float) -> str:
     return f"{v:g}" if isinstance(v, float) else str(v)
-
-
-def _signed(v: float, unit: str) -> str:
-    sign = "+" if v > 0 else "−" if v < 0 else "±"
-    return f"{sign}{_num_text(abs(v))}{unit}"
 
 
 _SKIP = object()
@@ -195,14 +222,19 @@ class OGrafError(Exception):
 
 
 class OGrafClient:
-    """Async client for the OGraf Server API v1. Works against any compliant server."""
+    """Async client for the OGraf Server API v1. Works against any compliant server.
 
-    def __init__(self, http: httpx.AsyncClient, prefix: str = "/ograf/v1"):
+    token: the bearer token for calls that change graphics; defaults to this process's own.
+    """
+
+    def __init__(self, http: httpx.AsyncClient, prefix: str = "/ograf/v1", token: str | None = None):
         self.http = http
         self.prefix = prefix.rstrip("/")
+        self.token = control_token() if token is None else token
 
     async def _call(self, method: str, path: str, body: Any = None, query: dict[str, str] | None = None) -> Any:
-        r = await self.http.request(method, f"{self.prefix}{path}", json=body, params=query)
+        r = await self.http.request(method, f"{self.prefix}{path}", json=body, params=query,
+                                    headers={"Authorization": f"Bearer {self.token}"})
         try:
             data = r.json()
         except ValueError:
@@ -273,12 +305,13 @@ class OGrafClient:
 
 class GraphicsOp:
     def __init__(self, *, outputs: dict[str, str] | None = None, languages: dict[str, str] | None = None,
-                 graphics_dir: Path = GRAPHICS_DIR, preroll_ms: int = PREROLL_MS):
+                 graphics_dir: Path = GRAPHICS_DIR, preroll_ms: int = PREROLL_MS, speed: float = 1.0):
         self.outputs = outputs if outputs is not None else {t: t for t in OUTPUTS if t != PRESENTER}
         self.languages = languages if languages is not None else dict(LANGUAGES)
         self.schemas = load_schemas(graphics_dir)
         self.preroll_ms = preroll_ms
-        self.log: list[str] = []
+        self.speed = speed  # match seconds per wall-clock second
+        self.log: deque[str] = deque(maxlen=1_000)
         self._slots: dict[tuple[str, int], list[_Slot]] = {}
         self._queue: list[GraphicAction] = []
         self._instances: dict[str, str] = {}
@@ -286,18 +319,25 @@ class GraphicsOp:
 
     # -- planning
 
-    def plan(self, cue: Cue, territory: str, now_t: int, delay_ms: int = 0) -> list[GraphicAction]:
-        """Timed actions that put an ON_AIR cue on a territory's output (or the presenter strip)."""
-        verdict = cue.verdicts.get(territory)
+    def plan(self, cue: Cue, territory: str, now_t: int, delay_ms: int = 0,
+             evidence: Iterable[Fact] = ()) -> list[GraphicAction]:
+        """Timed actions that put an ON_AIR cue on a territory's output (or the presenter strip).
+
+        evidence: the facts sent with the cue; only those its claims cite are used.
+        """
+        presenter = cue.audience == "presenter" or cue.template == "ifb"
+        if presenter and territory != FOLLOWS[PRESENTER]:
+            return self._drop(cue.id, territory, f"the presenter strip follows {FOLLOWS[PRESENTER]}")
+        verdict = cue.verdicts.get(FOLLOWS.get(territory, territory))
         if verdict is None or verdict.verdict != Verdict.ON_AIR:
             return self._drop(cue.id, territory, "not ON_AIR for this territory")
-        presenter = cue.audience == "presenter" or cue.template == "ifb"
         renderer = PRESENTER if presenter else self.outputs.get(territory)
         if renderer is None:
             return self._drop(cue.id, territory, "territory has no output")
-        tpl = TEMPLATES["ifb"] if presenter else TEMPLATES.get(cue.template, TEMPLATES[FALLBACK_TEMPLATE])
+        fact = cited_fact(cue, evidence)
+        tpl = TEMPLATES["ifb"] if presenter else card_template(cue.template, fact)
         key = f"{cue.id}@{renderer}"
-        if any(s.key == key for slots in self._slots.values() for s in slots):
+        if any(s.key == key and s.end > now_t for slots in self._slots.values() for s in slots):
             return []
         at = now_t + delay_ms
         expires = cue.created_t + cue.max_age_ms + delay_ms
@@ -305,12 +345,13 @@ class GraphicsOp:
             return self._drop(cue.id, territory, "stale before air")
         slots = self._slots.setdefault((renderer, int(tpl.layer)), [])
         slots[:] = [s for s in slots if s.end > now_t]
-        span = (lambda start: expires - start) if tpl.duration_ms is None else (lambda start: tpl.duration_ms)
+        shown = None if tpl.duration_ms is None else self._match_ms(tpl.duration_ms)
+        span = (lambda start: expires - start) if shown is None else (lambda start: shown)
         for _ in range(len(slots) + 1):
             blockers = [s for s in slots if _overlaps(s, at, at + span(at)) and not self._beats(tpl, s)]
             if not blockers:
                 break
-            at = max(s.end for s in blockers) + GAP_MS
+            at = max(s.end for s in blockers) + self._match_ms(GAP_MS)
         if at >= expires:
             return self._drop(cue.id, territory, f"layer {int(tpl.layer)} busy until the cue expires")
         until = at + span(at)
@@ -319,16 +360,27 @@ class GraphicsOp:
             out += self._preempt(slots, victim, renderer, int(tpl.layer), at)
         slots.append(_Slot(key, tpl.graphic_id, cue.id, tpl.priority, at, until))
         slots.sort(key=lambda s: s.start)
-        data = self.shape(tpl, cue, verdict.text, territory, at, until)
+        data = self.shape(tpl, cue, verdict.text, territory, at, until, fact)
         common = {"renderer_id": renderer, "graphic_id": tpl.graphic_id, "layer": int(tpl.layer), "key": key,
                   "cue_id": cue.id}
+        preroll = self._match_ms(self.preroll_ms)
         out += [
-            GraphicAction(action="load", data=data, at_ms=max(now_t, at - self.preroll_ms), until_ms=until, **common),
+            GraphicAction(action="load", data=data, at_ms=max(now_t, at - preroll), until_ms=until, **common),
             GraphicAction(action="play", at_ms=at, until_ms=until, **common),
             GraphicAction(action="stop", at_ms=until, **common),
         ]
         self._enqueue(out)
         return out
+
+    def rebase(self, delta_ms: int) -> None:
+        """Move every booking by delta_ms: the match clock restarted (a new run or replay loop), and
+        what is booked keeps its wall-clock schedule."""
+        self._queue = [a.model_copy(update={"at_ms": a.at_ms + delta_ms,
+                                            "until_ms": None if a.until_ms is None else a.until_ms + delta_ms})
+                       for a in self._queue]
+        for slots in self._slots.values():
+            for s in slots:
+                s.start, s.end = s.start + delta_ms, s.end + delta_ms
 
     def retire(self, cue_id: str, now_t: int) -> list[GraphicAction]:
         """Take a cue's graphics off now: the IFB line was spoken, or the producer pulled it."""
@@ -380,6 +432,9 @@ class GraphicsOp:
         self._enqueue(out)
         return out
 
+    def _match_ms(self, wall_ms: int) -> int:
+        return round(wall_ms * self.speed)
+
     def _beats(self, tpl: Template, slot: _Slot) -> bool:
         return tpl.priority > slot.priority or (tpl.replace_equal and tpl.priority == slot.priority)
 
@@ -412,24 +467,22 @@ class GraphicsOp:
                 out[k] = c
         return out
 
-    def shape(self, tpl: Template, cue: Cue, text: str, territory: str, at: int, until: int) -> dict[str, Any]:
-        """Graphic data for a cue: schema-checked, the cleared text in the free-text field."""
+    def shape(self, tpl: Template, cue: Cue, text: str, territory: str, at: int, until: int,
+              fact: Fact | None = None) -> dict[str, Any]:
+        """Graphic data for a cue: the cleared text, figures from the cited fact, labels made here."""
         gid = tpl.graphic_id
-        props = self.schemas.get(gid, {})
-        given = {_norm(k): v for k, v in cue.data.items() if v is not None}
-        aliases = ALIASES.get(gid, {})
-        raw: dict[str, Any] = {}
-        for name in props:
-            for alias in (name, *aliases.get(name, ())):
-                if _norm(alias) in given:
-                    raw[name] = given[_norm(alias)]
-                    break
-        if gid in TEXT_FIELD:
-            raw[TEXT_FIELD[gid]] = text
-        elif "name" not in raw:
-            raw["name"] = text
-        extra = _derived(gid, cue, given, raw, at, until)
-        raw.update(extra)
+        raw: dict[str, Any] = {TEXT_FIELD.get(gid, "name"): text}
+        if gid == "talkback-stat-card" and fact is not None:
+            raw.update(label=metric_label(fact.metric), value=broadcast_value(fact),
+                       evidence=f"n={fact.sample_size} · {_minutes(fact.window)}")
+            if fact.unit not in UNITLESS:
+                raw["unit"] = fact.unit
+        elif gid == "talkback-story-card":
+            raw["kind"] = "STORY"
+        elif gid == "talkback-ifb":
+            # the strip counts down on the presenter's screen, so in wall-clock time
+            raw.update(label=IFB_LABELS.get(cue.template, "CUE"), countdownMs=max(0, round((until - at) / self.speed)),
+                       cueId=cue.id)
         raw["dir"] = "rtl" if is_rtl(text) else "ltr"
         if lang := self.languages.get(territory):
             raw["lang"] = lang
@@ -494,39 +547,3 @@ def _clock(state: MatchState) -> tuple[int, int]:
     cap = 45 if state.period <= 1 else 90
     return (cap, minute - cap) if minute > cap else (minute, 0)
 
-
-def _pick(given: dict[str, Any], *keys: str) -> Any:
-    for k in keys:
-        if _norm(k) in given:
-            return given[_norm(k)]
-    return None
-
-
-def _derived(gid: str, cue: Cue, given: dict[str, Any], raw: dict[str, Any], at: int, until: int) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    if gid in ("talkback-stat-card", "talkback-counterfactual-card") and "evidence" not in raw:
-        parts = []
-        if (n := _pick(given, "n", "sample_size", "sample")) is not None:
-            parts.append(f"n={_num_text(n)}")
-        lo, hi = _pick(given, "window_from", "from_minute"), _pick(given, "window_to", "to_minute")
-        if lo is not None and hi is not None:
-            parts.append(f"{_num_text(lo)}′–{_num_text(hi)}′")
-        if parts:
-            out["evidence"] = " · ".join(parts)
-    if gid == "talkback-story-card":
-        kind = str(raw.get("kind") or "story")
-        out["kind"] = STORY_BADGES.get(kind.lower(), kind.replace("_", " ").upper())
-    if gid == "talkback-counterfactual-card":
-        unit = str(raw.get("unit", "%"))
-        delta_unit = " pts" if unit == "%" else unit
-        effect = raw.get("effect")
-        if isinstance(effect, (int, float)) and not isinstance(effect, bool):
-            out["effect"] = _signed(effect, delta_unit)
-        lo, hi = _pick(given, "ci_low", "ci95_low", "ci_lo"), _pick(given, "ci_high", "ci95_high", "ci_hi")
-        if "interval" not in raw and lo is not None and hi is not None:
-            out["interval"] = f"95% interval {_signed(lo, '')} to {_signed(hi, '')}"
-    if gid == "talkback-ifb":
-        out["label"] = str(raw.get("label") or IFB_LABELS.get(cue.template, "CUE"))
-        out["countdownMs"] = max(0, until - at)
-        out["cueId"] = cue.id
-    return out
