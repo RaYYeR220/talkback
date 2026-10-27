@@ -182,7 +182,8 @@ Deploy to Azure: see [docs/deploy.md](docs/deploy.md).
 
 * The match engine is calibrated to aggregate levels, not fitted to real matches; it is a credible world to
   test editorial behaviour in, not a forecasting model.
-* Spelled-out numbers ("nine shots") are not extracted by the number check. Strength words outside the
+* The number check reads digits in every script and number words in English, Spanish and Portuguese, but not
+  Arabic number words, and it ignores "one" and "first" (too often not a number). Strength words outside the
   lexicon are not caught.
 * Territory packs are templates, not legal advice.
 * Auto-eventing from video, Microsoft Fabric and Teams publishing are not part of this build.

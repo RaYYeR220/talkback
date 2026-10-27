@@ -208,3 +208,24 @@ def test_dev_safety_guard(monkeypatch):
     monkeypatch.setenv("TALKBACK_ENV", "dev")
     assert asyncio.run(LocalDevSafety().analyze("Ashford lead")) == (
         True, "content-safety: skipped (dev)")
+
+
+@pytest.mark.parametrize("text,lang,values", [
+    ("three goals in his last four, one short of his hundredth", "en", [3, 4, 100]),
+    ("twenty-one passes and a thousand fans", "en", [21, 1000]),
+    ("tres goles en sus últimos cuatro partidos", "es", [3, 4]),
+    ("dois gols em três jogos, o centésimo", "pt", [2, 3, 100]),
+    ("one of the best in the first half", "en", []),
+])
+def test_number_words_are_numbers(text, lang, values):
+    assert extract_numbers(text, lang) == values
+
+
+def test_spelled_out_number_without_a_claim_is_killed():
+    verdict, reasons = universal_checks(cue("Okafor has three goals this season"), ctx())
+    assert verdict is Verdict.KILLED and any(r.startswith("number: 3") for r in reasons)
+
+
+def test_number_words_do_not_misread_common_phrases():
+    assert extract_numbers("91 por ciento de sus pases", "es") == [91]
+    assert extract_numbers("a fifty-fifty ball", "en") == []
