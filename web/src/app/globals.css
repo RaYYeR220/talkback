@@ -26,7 +26,7 @@ body {
   /* the room: two soft pools at the top, a faint 64px grid, warm black */
   background:
     radial-gradient(50% 46% at 30% 0%, rgba(239, 236, 230, 0.04), transparent 70%) top / 100% 100vh no-repeat,
-    radial-gradient(40% 40% at 96% 96%, rgba(239, 236, 230, 0.03), transparent 70%) top / 100% 100vh no-repeat,
+    radial-gradient(36% 40% at 96% 52%, rgba(239, 236, 230, 0.03), transparent 70%) top / 100% 100vh no-repeat,
     repeating-linear-gradient(0deg, var(--grid-line) 0 1px, transparent 1px var(--grid-step)),
     repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px var(--grid-step)),
     var(--bg);
