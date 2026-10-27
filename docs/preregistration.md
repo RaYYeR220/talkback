@@ -105,3 +105,20 @@ metrics and scoring code as above; at most two matchdays play at a time.
 | 2033 | `63511255a26110c38c0249bf7f1204a6f8063ce6e7c7cd14f8fa3168161fa12b` | 10 |
 | 2034 | `8dbab58f1429422862370c18b67344d009803fe543f845d3155373f54562c622` | 11 |
 | 2035 | `b504403f30a709570bdcefdd33b09a33e587f28de4cf1d2cebc222e7a5fd2802` | 9 |
+
+### After the record was first scored (2026-10-27, evening)
+
+Every line the scorer flagged on the held-out matchdays was read. All 15 numbers it counted as unverifiable for
+Talkback were facts the gate had checked against their cited value, and all 6 spoilers it counted named a club of
+the line's own match. Both were faults of the scorer, which applies to all three systems:
+
+* **Club mentions** — a club counted as named when a line used any later word of its name ("Wanderers", "Town",
+  "United"), which several clubs share. A club now counts only by its full name, its city or its code; a player
+  still counts by surname.
+* **Reference of citable numbers** — it held the shot speed of the latest shot only, sampled every five minutes, and
+  judged a line against the checkpoint up to five minutes *after* it aired, when a cumulative value has already
+  moved on. It now holds every player's event facts, sampled every 30 seconds, and a line is judged against the ten
+  minutes before it aired and the minute after.
+
+Everything was re-scored with the corrected code from the same saved broadcasts and cached baselines; no system was
+run again. The results as first published are kept in `docs/eval-summary-as-published.json` and in `docs/PROOF.md`.

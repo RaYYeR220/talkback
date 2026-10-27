@@ -20,24 +20,32 @@ hash.
 |---|---|---|---|
 | Story Recall (must-surface storylines on air in time) | **69%** (33/48) | **25%** (12/48) | **92%** (44/48) |
 | …surfaced late / missed | 1 / 14 | 8 / 28 | 1 / 3 |
+| Unverifiable numbers on air | 0.0% (0/997) | 0.1% (2/1916) | 0.5% (12/2315) |
+| Over-claims in the first 8 minutes | 0 | 0 | 9 |
+| Spoilers inside MENA's two-minute delay | 0 | 8 | 6 |
+| Trivia that reached air | 1 | 0 | 1 |
+| Lines on air (English) | 1070 | 1186 | 2006 |
+<!-- EVAL-RESULTS -->
+
+**What it says.** On matchdays it had never seen, Talkback put 69% of the stories that had to reach air on air in time; the single model, with the same data sheet and the same model, managed 25%. Nothing it aired was a number the reference could not match, no line named another match inside the MENA delay, and it never used strong wording on thin evidence. The control column is the price of the gate: with Clearance off the same drafts would have reached 92% of the stories, with 6 spoilers, 9 over-claims and 12 unverifiable numbers.
+
+**Two scoring corrections, made after the record was first scored.** Reading every flagged line showed two faults in the scorer, not in the systems: the spoiler detector counted a club as named when a line used a word its name shares with another club ("Halverton *Wanderers*" for "Kestrel Bay Wanderers"), and the reference of citable numbers missed shot speeds of all but the latest shot and judged a line against a checkpoint after it aired. All three systems are re-scored with the corrected code from the same saved broadcasts; no system was run again. The table as first published, for comparison:
+
+| | Talkback | Single model | Clearance off |
+|---|---|---|---|
+| Story Recall (must-surface storylines on air in time) | **69%** (33/48) | **25%** (12/48) | **92%** (44/48) |
+| …surfaced late / missed | 1 / 14 | 8 / 28 | 1 / 3 |
 | Unverifiable numbers on air | 1.5% (15/997) | 0.1% (2/1916) | 2.6% (60/2315) |
 | Over-claims in the first 8 minutes | 0 | 0 | 9 |
 | Spoilers inside MENA's two-minute delay | 6 | 76 | 54 |
 | Trivia that reached air | 1 | 0 | 1 |
 | Lines on air (English) | 1070 | 1186 | 2006 |
-<!-- EVAL-RESULTS -->
 
-**What it says.** On matchdays it had never seen, Talkback put 69% of the stories that had to reach air on air in
-time; the single model, with the same data sheet and the same model, managed 25%. It kept the delayed MENA feed
-almost clean (6 spoilers against 76) and never used strong wording on thin evidence. The control column is the
-price of the gate: with Clearance off the same drafts would have reached 92% of the stories, at the cost of 54
-spoilers, 9 over-claims and four times as many unverifiable numbers. Two results go against us: Talkback aired 15
-numbers the reference could not match (1.5%, against the single model's 0.1%, which copies its numbers from a data
-sheet), and 6 spoilers still got through (5 of them on one matchday).
+All 15 numbers it flagged for Talkback were facts the gate had checked (11 shot speeds, 2 distances, 2 xG values), and all 6 Talkback spoilers named a club of the line's own match.
 
 ### Development set (seeds 2026–2030)
 
-The gallery was tuned while these matchdays were scored (see the amendments in the pre-registration), so they show the direction, not the record.
+The gallery was tuned while these matchdays were scored (see the amendments in the pre-registration), so they show the direction, not the record. Scored with the same corrected code.
 
 5 matchdays, 10 matches each; sealed keys `768c07185cbe…`, `aaf8ca691d11…`, `97369af9f813…`, `de6a811161f9…`, `d0ba8defaee8…`
 
@@ -45,9 +53,9 @@ The gallery was tuned while these matchdays were scored (see the amendments in t
 |---|---|---|---|
 | Story Recall (must-surface storylines on air in time) | **48%** (23/48) | **25%** (12/48) | **81%** (39/48) |
 | …surfaced late / missed | 1 / 24 | 11 / 25 | 2 / 7 |
-| Unverifiable numbers on air | 1.1% (6/547) | 0.0% (0/1949) | 7.7% (151/1953) |
+| Unverifiable numbers on air | 0.2% (1/547) | 0.0% (0/1949) | 1.6% (31/1953) |
 | Over-claims in the first 8 minutes | 0 | 0 | 9 |
-| Spoilers inside MENA's two-minute delay | 0 | 47 | 50 |
+| Spoilers inside MENA's two-minute delay | 0 | 5 | 5 |
 | Trivia that reached air | 3 | 2 | 9 |
 | Lines on air (English) | 593 | 1168 | 1680 |
 

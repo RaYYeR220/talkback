@@ -7,12 +7,12 @@
    "stories_missed": 24,
    "must": 48,
    "numbers": 547,
-   "unverifiable_numbers": 6,
+   "unverifiable_numbers": 1,
    "overclaims_in_thin_windows": 0,
    "trivia_intrusions": 3,
    "mena_spoilers": 0,
    "story_recall": 0.479,
-   "unverifiable_rate": 0.011,
+   "unverifiable_rate": 0.002,
    "matchdays": 5
   },
   "talkback_without_clearance": {
@@ -22,12 +22,12 @@
    "stories_missed": 7,
    "must": 48,
    "numbers": 1953,
-   "unverifiable_numbers": 151,
+   "unverifiable_numbers": 31,
    "overclaims_in_thin_windows": 9,
    "trivia_intrusions": 9,
-   "mena_spoilers": 50,
+   "mena_spoilers": 5,
    "story_recall": 0.812,
-   "unverifiable_rate": 0.077,
+   "unverifiable_rate": 0.016,
    "matchdays": 5
   },
   "baseline": {
@@ -40,7 +40,7 @@
    "unverifiable_numbers": 0,
    "overclaims_in_thin_windows": 0,
    "trivia_intrusions": 2,
-   "mena_spoilers": 47,
+   "mena_spoilers": 5,
    "story_recall": 0.25,
    "unverifiable_rate": 0.0,
    "matchdays": 5

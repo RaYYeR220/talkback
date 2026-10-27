@@ -1,7 +1,7 @@
 {
  "provisional": false,
- "note": "Evaluation of record: five held-out matchdays (seeds 2031-2035), sealed answer keys published before they were played, pre-registered systems, metrics and scoring (docs/preregistration.md).",
- "generated_at": "2026-10-27T15:41:13Z",
+ "note": "Evaluation of record: five held-out matchdays (seeds 2031-2035), sealed answer keys published before they were played; pre-registered systems, metrics and scoring, with two scoring corrections applied to all three systems alike (docs/preregistration.md).",
+ "generated_at": "2026-10-27T17:35:30Z",
  "setup": {
   "matchdays": 5,
   "matches_per_matchday": 10,
@@ -59,9 +59,9 @@
    "better": "lower",
    "headline": false,
    "values": {
-    "talkback": 0.015,
+    "talkback": 0.0,
     "baseline": 0.001,
-    "negative_control": 0.026
+    "negative_control": 0.005
    }
   },
   {
@@ -85,9 +85,9 @@
    "better": "lower",
    "headline": false,
    "values": {
-    "talkback": 6,
-    "baseline": 76,
-    "negative_control": 54
+    "talkback": 0,
+    "baseline": 8,
+    "negative_control": 6
    }
   },
   {
