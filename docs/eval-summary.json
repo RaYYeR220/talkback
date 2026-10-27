@@ -1,0 +1,81 @@
+{
+ "systems": {
+  "talkback": {
+   "lines": 1070,
+   "stories_hit": 33,
+   "stories_late": 1,
+   "stories_missed": 14,
+   "must": 48,
+   "numbers": 997,
+   "unverifiable_numbers": 15,
+   "overclaims_in_thin_windows": 0,
+   "trivia_intrusions": 1,
+   "mena_spoilers": 6,
+   "story_recall": 0.688,
+   "unverifiable_rate": 0.015,
+   "matchdays": 5
+  },
+  "talkback_without_clearance": {
+   "lines": 2006,
+   "stories_hit": 44,
+   "stories_late": 1,
+   "stories_missed": 3,
+   "must": 48,
+   "numbers": 2315,
+   "unverifiable_numbers": 60,
+   "overclaims_in_thin_windows": 9,
+   "trivia_intrusions": 1,
+   "mena_spoilers": 54,
+   "story_recall": 0.917,
+   "unverifiable_rate": 0.026,
+   "matchdays": 5
+  },
+  "baseline": {
+   "lines": 1186,
+   "stories_hit": 12,
+   "stories_late": 8,
+   "stories_missed": 28,
+   "must": 48,
+   "numbers": 1916,
+   "unverifiable_numbers": 2,
+   "overclaims_in_thin_windows": 0,
+   "trivia_intrusions": 0,
+   "mena_spoilers": 76,
+   "story_recall": 0.25,
+   "unverifiable_rate": 0.001,
+   "matchdays": 5
+  }
+ },
+ "matchdays": [
+  {
+   "run": "runs\\md-2031",
+   "broadcast": "runs\\md-2031\\broadcast-eval.jsonl",
+   "key_sha256": "da564bdbeba1ad41fd47cc09c1b13ff8bd799a2383a5d04e2d775773a15a904e",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2032",
+   "broadcast": "runs\\md-2032\\broadcast-eval.jsonl",
+   "key_sha256": "28c3880591d6be4b94c62c94495c01b67baafebef8d84ed0ff9a7b30ab3c7d77",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2033",
+   "broadcast": "runs\\md-2033\\broadcast-eval.jsonl",
+   "key_sha256": "63511255a26110c38c0249bf7f1204a6f8063ce6e7c7cd14f8fa3168161fa12b",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2034",
+   "broadcast": "runs\\md-2034\\broadcast-eval.jsonl",
+   "key_sha256": "8dbab58f1429422862370c18b67344d009803fe543f845d3155373f54562c622",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2035",
+   "broadcast": "runs\\md-2035\\broadcast-eval.jsonl",
+   "key_sha256": "b504403f30a709570bdcefdd33b09a33e587f28de4cf1d2cebc222e7a5fd2802",
+   "until_min": null
+  }
+ ]
+}

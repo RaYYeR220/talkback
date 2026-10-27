@@ -1,23 +1,23 @@
 {
  "provisional": false,
- "note": "Development set (seeds 2026-2030): measured with the pre-registered scoring, on matchdays the gallery was tuned against. The evaluation of record runs on five held-out matchdays (seeds 2031-2035) whose sealed keys were published before they were played.",
- "generated_at": "2026-10-27T14:22:28Z",
+ "note": "Evaluation of record: five held-out matchdays (seeds 2031-2035), sealed answer keys published before they were played, pre-registered systems, metrics and scoring (docs/preregistration.md).",
+ "generated_at": "2026-10-27T15:41:13Z",
  "setup": {
   "matchdays": 5,
   "matches_per_matchday": 10,
   "seeds": [
-   "runs\\md-2026",
-   "runs\\md-2027",
-   "runs\\md-2028",
-   "runs\\md-2029",
-   "runs\\md-2030"
+   2031,
+   2032,
+   2033,
+   2034,
+   2035
   ],
   "sealed_key_sha256": [
-   "768c07185cbe1455d16eb508a95261174e266c04ad3f3ab8d12933f22083c37a",
-   "aaf8ca691d11d495476c31c479116b536c234ecf6d4576c9eb9ccd80ad325117",
-   "97369af9f813c6f5be5bb12000304b5cd5352fb0760fe2f795dbe2af2a54569c",
-   "de6a811161f9756ee6a8304f5e524aa9e34500dce0646b25d86040e824451809",
-   "d0ba8defaee8e77ac45f39bc8782b288760c5d9318103ed42eb69f305e703246"
+   "da564bdbeba1ad41fd47cc09c1b13ff8bd799a2383a5d04e2d775773a15a904e",
+   "28c3880591d6be4b94c62c94495c01b67baafebef8d84ed0ff9a7b30ab3c7d77",
+   "63511255a26110c38c0249bf7f1204a6f8063ce6e7c7cd14f8fa3168161fa12b",
+   "8dbab58f1429422862370c18b67344d009803fe543f845d3155373f54562c622",
+   "b504403f30a709570bdcefdd33b09a33e587f28de4cf1d2cebc222e7a5fd2802"
   ]
  },
  "systems": [
@@ -46,9 +46,9 @@
    "better": "higher",
    "headline": true,
    "values": {
-    "talkback": 0.479,
+    "talkback": 0.688,
     "baseline": 0.25,
-    "negative_control": 0.812
+    "negative_control": 0.917
    }
   },
   {
@@ -59,9 +59,9 @@
    "better": "lower",
    "headline": false,
    "values": {
-    "talkback": 0.011,
-    "baseline": 0.0,
-    "negative_control": 0.077
+    "talkback": 0.015,
+    "baseline": 0.001,
+    "negative_control": 0.026
    }
   },
   {
@@ -85,9 +85,9 @@
    "better": "lower",
    "headline": false,
    "values": {
-    "talkback": 0,
-    "baseline": 47,
-    "negative_control": 50
+    "talkback": 6,
+    "baseline": 76,
+    "negative_control": 54
    }
   },
   {
@@ -98,16 +98,16 @@
    "better": "lower",
    "headline": false,
    "values": {
-    "talkback": 3,
-    "baseline": 2,
-    "negative_control": 9
+    "talkback": 1,
+    "baseline": 0,
+    "negative_control": 1
    }
   }
  ],
  "latency": {
   "description": "Moment spotted to line on air, Talkback only.",
-  "p50_ms": 27035,
-  "p95_ms": 103603
+  "p50_ms": 22990,
+  "p95_ms": 89911
  },
  "reproduce": [
   "uv run talkback eval-all --seeds 2026 2027 2028 2029 2030 --speed 6"

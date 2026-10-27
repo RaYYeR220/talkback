@@ -12,7 +12,19 @@ are the ones the gallery was tuned on. `talkback eval` refuses to score a run wh
 hash.
 
 <!-- EVAL-RESULTS -->
-**Evaluation of record (held-out seeds 2031–2035):** running; the table lands here when it is scored.
+### Evaluation of record (held-out seeds 2031–2035)
+
+5 matchdays, 10 matches each; sealed keys `da564bdbeba1…`, `28c3880591d6…`, `63511255a261…`, `8dbab58f1429…`, `b504403f30a7…`
+
+| | Talkback | Single model | Clearance off |
+|---|---|---|---|
+| Story Recall (must-surface storylines on air in time) | **69%** (33/48) | **25%** (12/48) | **92%** (44/48) |
+| …surfaced late / missed | 1 / 14 | 8 / 28 | 1 / 3 |
+| Unverifiable numbers on air | 1.5% (15/997) | 0.1% (2/1916) | 2.6% (60/2315) |
+| Over-claims in the first 8 minutes | 0 | 0 | 9 |
+| Spoilers inside MENA's two-minute delay | 6 | 76 | 54 |
+| Trivia that reached air | 1 | 0 | 1 |
+| Lines on air (English) | 1070 | 1186 | 2006 |
 <!-- EVAL-RESULTS -->
 
 ### Development set (seeds 2026–2030)
