@@ -23,7 +23,7 @@ from talkback.clearance.checks import CheckContext
 from talkback.clearance.gate import Gate
 from talkback.clearance.packs import PackContext
 from talkback.gallery.agents.archivist import make_archivist, pick_storylines
-from talkback.gallery.agents.desks import TerritoryDesk, localise_all
+from talkback.gallery.agents.desks import TerritoryDesk, localise_all, localise_many
 from talkback.gallery.agents.lab import LabBackend, LabResult, finalize, make_lab
 from talkback.gallery.agents.writer import WriterFailure, draft_cues, make_writer, revise_cue
 from talkback.gallery.spotter import Moment
@@ -204,9 +204,9 @@ class ClearanceExec(Executor):
             facts={f.id: f for f in d.job.facts}, experiments={x.id: x for x in d.lab.experiments},
             storylines={s.id: s for s in d.stories}, state=self.deps.state_now(match_id),
             now_t=d.job.age_now_t(), lang="en")
+        batch = await localise_many(d.cues, self.deps.desks)
         for n, cue in enumerate(d.cues):
-            localized = await localise_all(cue, self.deps.desks)
-            await self.deps.gate.evaluate(cue, ctx_checks, localized, self.deps.pack_ctx(match_id))
+            await self.deps.gate.evaluate(cue, ctx_checks, batch[n], self.deps.pack_ctx(match_id))
             if _fixable(cue):
                 # one revision: the writer sees exactly why Clearance refused and may try once more
                 second = await revise_cue(make_writer(self.deps.client("fast")), cue, cue.universal_reasons,

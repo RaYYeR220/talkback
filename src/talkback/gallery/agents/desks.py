@@ -67,3 +67,44 @@ async def localise_all(cue: Cue, desks: list[TerritoryDesk]) -> dict[str, tuple[
 
     results = await asyncio.gather(*(one(d) for d in desks))
     return {t: v for t, v in results if v is not None}
+
+
+BATCH = (
+    "\n\nYou may get several numbered lines. Localise each one separately and answer only with JSON: "
+    "{\"texts\": [\"<line 1>\", \"<line 2>\", ...]} in the same order."
+)
+
+
+class _Texts(BaseModel):
+    texts: list[str]
+
+
+async def localise_many(cues: list[Cue], desks: list[TerritoryDesk]) -> list[dict[str, tuple[str, str]]]:
+    """One model call per territory for all of a moment's lines; failures leave that territory out."""
+    if not cues:
+        return []
+    out: list[dict[str, tuple[str, str]]] = [{} for _ in cues]
+
+    async def one(d: TerritoryDesk) -> None:
+        if d.agent is None:
+            for i, c in enumerate(cues):
+                out[i][d.territory] = (c.text, d.lang)
+            return
+        if len(cues) == 1:
+            got = await d.localise(cues[0])
+            if got is not None:
+                out[0][d.territory] = got
+            return
+        prompt = "\n".join(f"{i + 1}. {c.text}" for i, c in enumerate(cues)) + BATCH
+        try:
+            texts = parse_json((await d.agent.run(prompt)).text, _Texts).texts
+        except Exception:  # noqa: BLE001
+            return
+        if len(texts) != len(cues):
+            return
+        for i, t in enumerate(texts):
+            if t.strip():
+                out[i][d.territory] = (t.strip(), d.lang)
+
+    await asyncio.gather(*(one(d) for d in desks))
+    return out
