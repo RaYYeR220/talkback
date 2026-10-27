@@ -10,19 +10,38 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: var(--bg);
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-ui);
   font-size: var(--text-md);
   line-height: var(--leading-body);
-  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
+  /* the room: two soft pools, a faint 64px grid, warm black */
+  background:
+    radial-gradient(50% 46% at 30% 0%, rgba(239, 236, 230, 0.04), transparent 70%),
+    radial-gradient(40% 40% at 96% 100%, rgba(239, 236, 230, 0.03), transparent 70%),
+    repeating-linear-gradient(0deg, var(--grid-line) 0 1px, transparent 1px var(--grid-step)),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px var(--grid-step)),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* fine grain over everything; never takes a pointer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: var(--grain);
+  background-size: var(--grain-size) var(--grain-size);
 }
 
 h1,
@@ -36,6 +55,12 @@ dl,
 dd,
 figure {
   margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: var(--weight-medium);
 }
 
 ul,
@@ -75,6 +100,12 @@ iframe {
   max-width: 100%;
 }
 
+/* figures line up in tables and readouts (not in running text: the grotesk's tnum also widens . and ,) */
+table,
+.umd {
+  font-variant-numeric: tabular-nums;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -109,9 +140,9 @@ iframe {
   top: -3rem;
   z-index: 100;
   padding: var(--space-2) var(--space-3);
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-radius: var(--radius-2);
+  background: var(--fg);
+  color: var(--fg-inverse);
+  border-radius: var(--radius-1);
   text-decoration: none;
 }
 
@@ -124,19 +155,47 @@ iframe {
   font-variant-numeric: tabular-nums;
 }
 
+.umd-type {
+  font-family: var(--font-umd);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-umd);
+  text-transform: uppercase;
+}
+
 .display {
   font-family: var(--font-display);
-  font-weight: var(--weight-regular);
+  font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-display);
-  line-height: var(--leading-tight);
+  line-height: var(--leading-display);
 }
 
 .kicker {
   font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  font-size: var(--text-label);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--fg-muted);
+}
+
+/* mono eyebrow with a leading rule */
+.eyebrow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.eyebrow::before {
+  content: "";
+  flex: 0 0 28px;
+  height: 1px;
+  margin-top: 0.75em; /* on the first line's centre, also when the label wraps */
+  background: var(--fg-dim);
 }
 
 .muted {
@@ -147,26 +206,98 @@ iframe {
   color: var(--fg-faint);
 }
 
+/* a tally lamp: unlit by default, red only for programme */
+.lamp {
+  display: inline-block;
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--lamp-off);
+}
+
+.lamp[data-on="pgm"] {
+  background: var(--tally);
+  box-shadow: 0 0 8px var(--tally);
+}
+
+/* under-monitor display */
+.umd {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  height: var(--umd-h);
+  padding: 0 10px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-umd);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-umd);
+  letter-spacing: var(--tracking-umd);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.umd > :not(.lamp) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* panels are monitors: a bezel, a UMD strip for a header */
 .panel {
   background: var(--bg-raised);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--bezel);
   border-radius: var(--radius-3);
   min-width: 0;
 }
 
 .panel-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-height: 2.5rem;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-4);
+  background: var(--bg-sunken);
   border-bottom: var(--hairline) solid var(--line);
+  border-radius: var(--radius-3) var(--radius-3) 0 0;
 }
 
 .panel-head h2 {
-  font-size: var(--text-sm);
+  min-width: 0;
+  font-family: var(--font-umd);
+  font-size: var(--text-umd);
   font-weight: var(--weight-strong);
-  letter-spacing: 0.01em;
+  letter-spacing: var(--tracking-umd);
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.panel-head h2::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-inline-end: 9px;
+  vertical-align: 1px;
+  border-radius: 1px;
+  background: var(--lamp-off);
+}
+
+.panel[data-tally="pgm"] {
+  border-color: color-mix(in oklab, var(--tally) 55%, var(--bezel));
+}
+
+.panel[data-tally="pgm"] > .panel-head h2::before {
+  background: var(--tally);
+  box-shadow: 0 0 8px var(--tally);
 }
 
 .panel-body {
@@ -188,7 +319,7 @@ iframe {
   min-height: 2.25rem;
   padding: 0 var(--space-4);
   border: var(--hairline) solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-1);
   background: transparent;
   color: var(--fg);
   font-size: var(--text-sm);
@@ -211,25 +342,41 @@ iframe {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-fg);
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--fg-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--accent) 88%, var(--fg));
-  border-color: transparent;
+  background: #fff;
+  border-color: #fff;
+}
+
+/* the one button that puts something on air carries a tally square */
+.btn-tally::before {
+  content: "";
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--tally);
 }
 
 .btn-sm {
-  min-height: 1.75rem;
+  min-height: 1.875rem;
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
 }
 
+.btn-sm.btn-tally::before {
+  flex-basis: 7px;
+  width: 7px;
+  height: 7px;
+}
+
 .btn-approve {
-  border-color: color-mix(in oklab, var(--on-air) 50%, transparent);
-  color: var(--on-air);
+  border-color: color-mix(in oklab, var(--ok) 50%, transparent);
+  color: var(--ok);
 }
 
 .btn-reject {
@@ -238,7 +385,7 @@ iframe {
 }
 
 .btn[aria-pressed="true"].btn-approve {
-  background: var(--on-air-soft);
+  background: var(--ok-soft);
 }
 
 .btn[aria-pressed="true"].btn-reject {
@@ -249,10 +396,10 @@ iframe {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 5px;
   padding: 0.0625rem var(--space-2);
   border: var(--hairline) solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   line-height: 1.5;
@@ -264,16 +411,31 @@ iframe {
 
 .chip-dot::before {
   content: "";
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* verdicts read like lamps: lit red for on air, amber for held, a dead violet lamp for killed */
+.verdict::before {
+  content: "";
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
   background: currentColor;
 }
 
 .verdict[data-verdict="ON_AIR"] {
-  color: var(--on-air);
+  color: var(--on-air-ink);
   background: var(--on-air-soft);
   border-color: transparent;
+}
+
+.verdict[data-verdict="ON_AIR"]::before {
+  background: var(--tally);
+  box-shadow: 0 0 6px var(--tally);
 }
 
 .verdict[data-verdict="HOLD_FOR_PRODUCER"] {
@@ -286,6 +448,11 @@ iframe {
   color: var(--killed);
   background: var(--killed-soft);
   border-color: transparent;
+}
+
+.verdict[data-verdict="KILLED"]::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
 }
 
 .territory[data-territory="world"] {
@@ -356,7 +523,7 @@ iframe {
   min-height: 2.25rem;
   padding: 0 2rem 0 var(--space-3);
   border: var(--hairline) solid var(--line-strong);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-1);
   background-color: var(--bg-sunken);
   background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
     linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
@@ -368,22 +535,24 @@ iframe {
   max-width: 100%;
 }
 
+/* a bank of hard buttons */
 .segmented {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0;
+  gap: 2px;
   border: var(--hairline) solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-1);
   padding: 2px;
   max-width: 100%;
+  background: var(--bg-sunken);
 }
 
 .segmented button {
   border: 0;
   background: transparent;
-  min-height: 1.875rem;
+  min-height: 1.75rem;
   padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
+  border-radius: 1px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   letter-spacing: 0.06em;
@@ -391,20 +560,25 @@ iframe {
   color: var(--fg-muted);
 }
 
-.segmented button:hover {
+.segmented button:hover:not(:disabled) {
   color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.segmented button:disabled {
+  color: var(--fg-dim);
 }
 
 .segmented button[aria-pressed="true"],
 .segmented button[aria-checked="true"] {
   background: var(--fg);
-  color: var(--bg);
+  color: var(--fg-inverse);
 }
 
 .meter {
   position: relative;
-  height: 6px;
-  border-radius: var(--radius-pill);
+  height: 4px;
+  border-radius: 1px;
   background: var(--line);
   overflow: hidden;
 }
@@ -412,7 +586,7 @@ iframe {
 .meter > span {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--on-air);
+  background: var(--ok);
   border-radius: inherit;
   transition: width var(--dur-3) var(--ease);
 }
@@ -422,6 +596,7 @@ iframe {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
