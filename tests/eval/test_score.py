@@ -2,13 +2,11 @@ import pytest
 
 from talkback.eval.detect import surfaces
 from talkback.eval.score import Context, Line, score
-from talkback.world.matchday import prepare_matchday, run_matchday_offline
 
 
 @pytest.fixture(scope="module")
-def ctx(tmp_path_factory):
-    out = run_matchday_offline(prepare_matchday(2026), tmp_path_factory.mktemp("ev") / "run", snapshots=False)
-    return Context.load(out)
+def ctx(run_dir):
+    return Context.load(run_dir)
 
 
 def _item(ctx, kind):
