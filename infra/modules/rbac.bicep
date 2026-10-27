@@ -13,8 +13,11 @@ param eventHubNamespaceName string
 param storageAccountName string
 param generatorJobName string
 
-@description('Foundry User on the account: models via the project endpoint, Content Safety, agent endpoints.')
+@description('Foundry User on the account: models via the project endpoint, agent endpoints.')
 param foundryUsers principal[] = []
+
+@description('Cognitive Services User on the account: Content Safety (Foundry User does not carry its data actions).')
+param contentSafetyUsers principal[] = []
 
 @description('Foundry Agent Consumer on the project: call hosted agents (Responses / A2A).')
 param agentConsumers principal[] = []
@@ -30,6 +33,7 @@ param jobOperators principal[] = []
 
 var roleIds = {
   foundryUser: '53ca6127-db72-4b80-b1b0-d745d6d5456d'
+  cognitiveServicesUser: 'a97b65f3-24c7-4388-baec-2e87ef0bb6d4'
   foundryAgentConsumer: 'eed3b665-ab3a-47b6-8f48-c9382fb1dad6'
   eventHubsDataSender: '2b629674-e913-4c01-ae53-ef4638d8f975'
   eventHubsDataReceiver: 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde'
@@ -60,6 +64,18 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
 resource generatorJob 'Microsoft.App/jobs@2025-01-01' existing = {
   name: generatorJobName
 }
+
+resource contentSafetyAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for p in contentSafetyUsers: {
+    name: guid(account.id, p.principalId, roleIds.cognitiveServicesUser)
+    scope: account
+    properties: {
+      principalId: p.principalId
+      principalType: p.principalType
+      roleDefinitionId: roleId(roleIds.cognitiveServicesUser)
+    }
+  }
+]
 
 resource foundryUserAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for p in foundryUsers: {

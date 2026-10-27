@@ -510,6 +510,7 @@ module rbac 'modules/rbac.bicep' = {
     storageAccountName: storage.outputs.name
     generatorJobName: generator.outputs.name
     foundryUsers: concat([talkbackSp, mcpSp], agentsOnAca ? [agentsSp] : [])
+    contentSafetyUsers: concat([talkbackSp], developer)
     agentConsumers: assignAgentConsumerRole ? [talkbackSp, mcpSp] : []
     eventHubSenders: [generatorSp, talkbackSp]
     eventHubReceivers: [talkbackSp]
