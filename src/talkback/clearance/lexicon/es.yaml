@@ -1,0 +1,72 @@
+# Niveles de fuerza: 1 matizado, 2 firme, 3 absoluto. El nivel 0 es todo lo demás.
+lang: es
+levels:
+  1:
+    - ligeramente
+    - levemente
+    - un poco más
+    - algo más
+    - empieza a
+    - empiezan a
+    - comienza a
+    - comienzan a
+    - primeros indicios
+    - primeras señales
+    - tímidamente
+    - poco a poco
+    - insinúa
+    - insinúan
+  2:
+    - superiores
+    - mejor equipo
+    - claramente
+    - llevan la iniciativa
+    - tienen el control
+    - con autoridad
+    - encerrado
+    - encerrados
+    - llevan el peso del partido
+    - son mejores
+    - mandan en el partido
+    - manda en el partido
+    - controlan el partido
+    - controla el partido
+  3:
+    - dominante
+    - dominando
+    - dominan
+    - dominio absoluto
+    - dominio total
+    - arrollador
+    - arrolladores
+    - implacable
+    - implacables
+    - siempre
+    - cada vez que
+    - control total
+    - imparable
+    - completamente
+    - nunca
+    - jamás
+    - recital
+    - aplastante
+    - abrumador
+causal:
+  - porque
+  - gracias a
+  - debido a
+  - a causa de
+  - por culpa de
+  - provocó
+  - provocaron
+  - forzó
+  - forzaron
+  - les costó
+  - le costó
+  - les dio el partido
+  - ganó el partido
+  - condujo a
+  - como consecuencia de
+  - causó
+  - decidió el partido
+  - marcó la diferencia
