@@ -33,8 +33,7 @@ almost clean (6 spoilers against 76) and never used strong wording on thin evide
 price of the gate: with Clearance off the same drafts would have reached 92% of the stories, at the cost of 54
 spoilers, 9 over-claims and four times as many unverifiable numbers. Two results go against us: Talkback aired 15
 numbers the reference could not match (1.5%, against the single model's 0.1%, which copies its numbers from a data
-sheet), and 6 spoilers still got through in one matchday where another match scored while a line was being
-localised.
+sheet), and 6 spoilers still got through (5 of them on one matchday).
 
 ### Development set (seeds 2026–2030)
 
