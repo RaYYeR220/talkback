@@ -42,6 +42,9 @@ def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | 
     from talkback.gallery.llm import make_client
 
     ctx = Context.load(run)
+    sealed = (Path(run) / "key.sha256").read_text(encoding="utf-8").strip()
+    if ctx.key.sha256() != sealed:
+        raise SystemExit(f"answer key does not match its sealed hash in {run}")
     cut = int(until_min * 60_000) if until_min else None
     if cut is not None:
         ctx.events = [e for e in ctx.events if e.t <= cut]
@@ -59,13 +62,29 @@ def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | 
         ours = [l for l in ours if l.sim_t <= cut + 5 * 60_000]
         ungated = [l for l in ungated if l.sim_t <= cut + 5 * 60_000]
     result = score(ctx, ours + ungated + base_lines)
-    result["_meta"] = {"run": str(run), "broadcast": str(broadcast), "key_sha256": ctx.key.sha256(),
-                       "until_min": until_min}
+    result["_meta"] = {"run": str(run), "broadcast": str(broadcast), "key_sha256": sealed, "until_min": until_min}
     out = json.dumps(result, indent=1)
     if report:
         report.write_text(out, encoding="utf-8", newline="\n")
     print(out)
     return result
+
+
+def _eval_all(seeds: list[int], speed: float, out: Path) -> dict:
+    """Run the gallery and the baseline over each pre-registered matchday and aggregate the scores."""
+    from talkback.eval.report import aggregate
+
+    results = []
+    for seed in seeds:
+        run = Path(f"runs/md-{seed}")
+        broadcast = run / "broadcast-eval.jsonl"
+        if not broadcast.exists():
+            _gallery(run, speed, None, broadcast)
+        results.append(_eval(run, broadcast, None, None, run / "eval.json"))
+    summary = aggregate(results)
+    out.write_text(json.dumps(summary, indent=1), encoding="utf-8", newline="\n")
+    print(json.dumps(summary["systems"], indent=1))
+    return summary
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -85,6 +104,10 @@ def main(argv: list[str] | None = None) -> None:
     e.add_argument("--baseline", type=Path, default=None, help="cached baseline lines (computed if missing)")
     e.add_argument("--until", type=float, default=None, help="score only the first N match minutes")
     e.add_argument("--report", type=Path, default=None)
+    ea = sub.add_parser("eval-all", help="the pre-registered evaluation over several matchdays")
+    ea.add_argument("--seeds", type=int, nargs="+", default=[2026, 2027, 2028, 2029, 2030])
+    ea.add_argument("--speed", type=float, default=20.0)
+    ea.add_argument("--out", type=Path, default=Path("docs/eval-summary.json"))
     a = ap.parse_args(argv)
     if a.cmd == "matchday":
         from talkback.world.matchday import prepare_matchday, run_matchday_offline
@@ -94,6 +117,8 @@ def main(argv: list[str] | None = None) -> None:
         _gallery(a.run, a.speed, a.until, a.out)
     elif a.cmd == "eval":
         _eval(a.run, a.broadcast, a.baseline, a.until, a.report)
+    elif a.cmd == "eval-all":
+        _eval_all(a.seeds, a.speed, a.out)
 
 
 if __name__ == "__main__":
