@@ -45,6 +45,12 @@ mimetypes.add_type("text/javascript", ".js")
 END_STEP = -1
 OFFLINE = "No renderer page connected; state kept and replayed on connect"
 MAX_INSTANCES = 64  # per renderer; the oldest go first
+# Renderer sockets are public (the web console embeds the pages), so the number of pages is bounded, a page
+# that does not take a command within SEND_TIMEOUT_S is dropped, and nothing a page answers changes server
+# state: the server decides each graphic's step itself, and only a status code and a short message from an
+# answer reach the API caller.
+MAX_PAGES = 32  # per renderer
+SEND_TIMEOUT_S = 1.0
 # A page answers within the timeout or it is a miss. One that misses this many in a row is disconnected
 # (it reconnects and gets the state replayed), and a call never waits for more than the first answer.
 MAX_MISSES = 3
@@ -218,8 +224,9 @@ class _Page:
         fut = asyncio.get_running_loop().create_future()
         self._pending[rid] = fut
         try:
-            await self._send(json.dumps({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}))
-        except Exception as exc:  # noqa: BLE001 - any send failure means the page is gone
+            await asyncio.wait_for(self._send(json.dumps({"jsonrpc": "2.0", "id": rid, "method": method,
+                                                          "params": params})), SEND_TIMEOUT_S)
+        except Exception as exc:  # noqa: BLE001 - any send failure (or a page not reading) means the page is gone
             self._pending.pop(rid, None)
             fut.set_exception(RendererGone(str(exc)))
         return fut
@@ -304,7 +311,12 @@ def _payload(result: Any) -> dict[str, Any]:
     # A graphic action resolving to undefined MUST be treated as { statusCode: 200 }.
     if not isinstance(result, dict):
         return {"statusCode": 200}
-    return {**result, "statusCode": result.get("statusCode", 200)}
+    code = result.get("statusCode")
+    out: dict[str, Any] = {"statusCode": code if isinstance(code, int) and not isinstance(code, bool)
+                           and 100 <= code <= 599 else 200}
+    if isinstance(result.get("statusMessage"), str):
+        out["statusMessage"] = result["statusMessage"][:200]
+    return out
 
 
 def _merge(old: Any, new: Any) -> Any:
@@ -319,7 +331,7 @@ class OGrafServer:
                  layers: dict[int, tuple[str, str]] | None = None,
                  resolution: tuple[int, int] = (1920, 1080), frame_rate: float = 50,
                  timeout_s: float = 3.0, name: str = "Talkback OGraf Server", token: str | None = None,
-                 max_instances: int = MAX_INSTANCES):
+                 max_instances: int = MAX_INSTANCES, max_pages: int = MAX_PAGES):
         self.graphics_dir = Path(graphics_dir)
         self.renderer_dir = Path(renderer_dir)
         self.graphics = load_packages(self.graphics_dir)
@@ -333,6 +345,7 @@ class OGrafServer:
         self.name = name
         self.token = token or control_token()
         self.max_instances = max_instances
+        self.max_pages = max_pages
         self._watching: set[asyncio.Future] = set()
         self.graphics_url = "/ograf/graphics"
         self.router = self._api_router()
@@ -421,7 +434,10 @@ class OGrafServer:
                 if page.hangup is not None:
                     self._watch(page.hangup())
             return None, exc
-        except (GraphicError, RendererGone) as exc:
+        except RendererGone as exc:
+            self.detach(r.id, page)
+            return None, exc
+        except GraphicError as exc:
             page.misses = 0
             return None, exc
         page.misses = 0
@@ -501,6 +517,9 @@ class OGrafServer:
                 await websocket.close(code=4404)
                 return
             await websocket.accept()
+            if len(self.renderers[renderer_id].pages) >= self.max_pages:
+                await websocket.close(code=1013)  # try again later
+                return
 
             async def hangup() -> None:
                 with contextlib.suppress(Exception):  # already closed
@@ -655,9 +674,6 @@ class OGrafServer:
             res = await self._run(r, "playAction", self._action(inst, body.params), step)
             if res is None:
                 res = {"statusCode": 200, "statusMessage": OFFLINE}
-            else:
-                got = res.get("currentStep")
-                inst.step = int(got) if isinstance(got, (int, float)) and not isinstance(got, bool) and got >= 0 else None
             return {**res, "graphicInstanceId": inst.id, "currentStep": END_STEP if inst.step is None else inst.step}
 
         @router.post("/renderers/{rendererId}/target/graphicInstance/stopAction")

@@ -322,3 +322,31 @@ def test_the_control_token_comes_from_the_environment_or_is_made_once_per_proces
     monkeypatch.delenv("TALKBACK_OGRAF_TOKEN")
     made = control_token()
     assert len(made) >= 32 and control_token() == made == OGrafServer().token == OGrafClient(None).token
+
+
+def test_a_page_cannot_set_server_state_or_the_api_answer(client, server, monkeypatch):
+    from tests.ograf import support
+
+    def forged(msg):
+        if msg["method"] == "playAction":
+            return {"result": {"statusCode": 200, "currentStep": 7, "secret": "from the page",
+                               "statusMessage": "x" * 5000}}
+        return {"result": {"statusCode": 200}}
+
+    monkeypatch.setattr(support, "reply_for", forged)
+    with client.websocket_connect("/ograf/ws/uk") as ws:
+        FakePage(ws)
+        iid = call(client, "post", LOAD, load_body())["graphicInstanceId"]
+        res = call(client, "post", PLAY, targeted(iid))
+    assert res["currentStep"] == 0 and server.renderers["uk"].instances[iid].step == 0
+    assert "secret" not in res and len(res["statusMessage"]) <= 200
+
+
+def test_pages_per_renderer_are_capped():
+    server = OGrafServer(timeout_s=2.0, max_pages=1)
+    with TestClient(create_app(server), headers=auth(server)) as client, client.websocket_connect("/ograf/ws/uk") as ws:
+        FakePage(ws)
+        with pytest.raises(WebSocketDisconnect) as info, client.websocket_connect("/ograf/ws/uk") as extra:
+            extra.receive_json()
+        assert info.value.code == 1013
+        assert len(server.renderers["uk"].pages) == 1
