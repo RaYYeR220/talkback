@@ -259,7 +259,7 @@ class StatsDesk:
             raise KeyError(metric)
         if not np.isfinite(value):
             value, n, ev = 0.0, 0, []
-        return Fact(id=f"{self.match_id}:{metric}:{subject}:{window[1]}", match_id=self.match_id, metric=metric,
+        return Fact(id=f"{self.match_id}:{metric}:{subject}:{window[0]}-{window[1]}", match_id=self.match_id, metric=metric,
                     subject=subject, value=round(float(value), 6), unit=UNITS[metric.split(".", 1)[1]],
                     window=window, sample_size=int(n), evidence=ev[-EVIDENCE_CAP:], computed_at=window[1])
 
