@@ -230,15 +230,19 @@ class MatchdayRunner:
         """Moments wait in salience order: a goal never queues behind pre-match stories."""
         self.moments.append(moment)
         self._seq += 1
-        self.queue.put_nowait((-moment.salience, moment.t, self._seq, moment))
+        m = self.matches[moment.match_id]
+        # snapshot the evidence and state at the moment itself, not when a worker gets to it
+        job = MomentJob(moment=moment, facts=evidence_facts(m.desk, moment, m.t), names=self.names,
+                        state=m.state(), now_t=max(m.t, moment.t), anchor_event_id=self._anchor(moment))
+        self.queue.put_nowait((-moment.salience, moment.t, self._seq, job))
         if not self.workers:
             self.workers = [asyncio.create_task(self._worker()) for _ in range(self.max_concurrent)]
 
     async def _worker(self) -> None:
         while True:
-            *_, moment = await self.queue.get()
+            *_, job = await self.queue.get()
             try:
-                await self._workflow(moment)
+                await self._workflow(job)
             finally:
                 self.queue.task_done()
 
@@ -258,11 +262,9 @@ class MatchdayRunner:
                 return max(shots, key=lambda x: x.t).id if shots else None
         return None
 
-    async def _workflow(self, moment: Moment) -> None:
+    async def _workflow(self, job: MomentJob) -> None:
+        moment = job.moment
         m = self.matches[moment.match_id]
-        state = m.state()
-        job = MomentJob(moment=moment, facts=evidence_facts(m.desk, moment, m.t), names=self.names,
-                        state=state, now_t=m.t, anchor_event_id=self._anchor(moment))
         self.stats["workflows"] += 1
         self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id,
                                         "stage": "started", "kind": moment.kind})
