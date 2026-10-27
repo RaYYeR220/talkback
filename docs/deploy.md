@@ -47,11 +47,18 @@ Each hosted agent gets its own Entra agent identity at deploy time. `azd deploy`
    Tier 1 gives Global Standard 1M TPM for `gpt-5.4-mini` and 250K TPM for `gpt-6.1-sol`; the template asks for 50K each. The free tier (tier 0) only covers `gpt-4.1-mini`, `gpt-5-mini` and `o4-mini`. If that is what you have, switch the models before provisioning:
 
    ```bash
-   azd env set FAST_MODEL_NAME gpt-5-mini
-   azd env set FAST_MODEL_VERSION 2025-08-07
-   azd env set STRONG_MODEL_NAME o4-mini
-   azd env set STRONG_MODEL_VERSION 2025-04-16
+   azd env set FAST_MODEL_NAME gpt-4.1-mini
+   azd env set FAST_MODEL_VERSION 2025-04-14
+   azd env set FAST_MODEL_CAPACITY 150
+   azd env set STRONG_MODEL_NAME gpt-5-mini
+   azd env set STRONG_MODEL_VERSION 2025-08-07
+   azd env set STRONG_MODEL_CAPACITY 250
    ```
+
+   This is what the public deployment runs: a subscription that has just moved from the free trial to pay-as-you-go
+   starts at that tier. `gpt-5-mini` is a reasoning model; `STRONG_REASONING_EFFORT` (default `low`) keeps its
+   answers within a live gallery's budget. Once the quota for the preferred models is granted, set the names back
+   and run `azd provision` again; nothing else changes.
 
    Other strong options with Global Standard in Sweden Central: `gpt-6-sol` (`2026-09-22`), `gpt-5.6-sol` (`2026-07-09`), `gpt-5.4` (`2026-03-05`).
 4. **Tools.** Azure CLI 2.80+, Azure Developer CLI 1.37+, and the Foundry extensions:
