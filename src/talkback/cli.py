@@ -79,9 +79,24 @@ def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | 
     return result
 
 
-def _eval_all(seeds: list[int], speed: float, out: Path) -> dict:
+def _aired_latencies(broadcast: Path) -> list[int]:
+    """Spotting-to-air latency of every Talkback line that aired somewhere."""
+    out = []
+    with open(broadcast, encoding="utf-8") as fh:
+        for line in fh:
+            msg = json.loads(line)
+            d = msg.get("data", {})
+            if (msg.get("kind") == "cue" and d.get("latency_ms") is not None
+                    and any(v.get("verdict") == "ON_AIR" for v in d.get("verdicts", {}).values())):
+                out.append(int(d["latency_ms"]))
+    return out
+
+
+def _eval_all(seeds: list[int], speed: float, out: Path, web: Path | None = None) -> dict:
     """Run the gallery and the baseline over each pre-registered matchday and aggregate the scores."""
-    from talkback.eval.report import aggregate
+    from datetime import datetime, timezone
+
+    from talkback.eval.report import aggregate, to_web
 
     results = []
     for seed in seeds:
@@ -92,6 +107,10 @@ def _eval_all(seeds: list[int], speed: float, out: Path) -> dict:
         results.append(_eval(run, broadcast, None, None, run / "eval.json"))
     summary = aggregate(results)
     out.write_text(json.dumps(summary, indent=1), encoding="utf-8", newline="\n")
+    if web is not None:
+        latencies = [ms for seed in seeds for ms in _aired_latencies(Path(f"runs/md-{seed}") / "broadcast-eval.jsonl")]
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        web.write_text(json.dumps(to_web(summary, latencies, stamp), indent=1), encoding="utf-8", newline="\n")
     print(json.dumps(summary["systems"], indent=1))
     return summary
 
@@ -117,6 +136,7 @@ def main(argv: list[str] | None = None) -> None:
     ea.add_argument("--seeds", type=int, nargs="+", default=[2026, 2027, 2028, 2029, 2030])
     ea.add_argument("--speed", type=float, default=20.0)
     ea.add_argument("--out", type=Path, default=Path("docs/eval-summary.json"))
+    ea.add_argument("--web", type=Path, default=None, help="also write the web Proof page's scorecard here")
     a = ap.parse_args(argv)
     if a.cmd == "matchday":
         from talkback.world.matchday import prepare_matchday, run_matchday_offline
@@ -127,7 +147,7 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "eval":
         _eval(a.run, a.broadcast, a.baseline, a.until, a.report)
     elif a.cmd == "eval-all":
-        _eval_all(a.seeds, a.speed, a.out)
+        _eval_all(a.seeds, a.speed, a.out, a.web)
 
 
 if __name__ == "__main__":
