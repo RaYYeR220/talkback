@@ -15,7 +15,7 @@ export default function ProofPage() {
       <SiteHeader current="/proof" />
       <main id="main" className={styles.main}>
         <header className={styles.intro}>
-          <p className="kicker">Pre-registered evaluation</p>
+          <p className="eyebrow">Pre-registered evaluation</p>
           <h1 className={`display ${styles.title}`}>Proof</h1>
           <p className="muted">
             Every number on the console traces back to an event. This page holds the system to the same standard: did
