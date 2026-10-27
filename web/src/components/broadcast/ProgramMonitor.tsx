@@ -55,12 +55,17 @@ export function ProgramMonitor({ matchId, output, renderer, size = "full" }: Pro
   const cue = graphic ? state.cues[graphic.cue_id] : undefined;
   const story = cue?.stories?.[0] ? storyById(state, cue.stories[0]) : undefined;
 
+  // the red tally is lit only while this match is the one the Director has on the world feed
+  const onAir = Boolean(matchId && matchId === state.rundown?.match_id);
+
   const label = matchId
-    ? `Program monitor, ${info.label} output: ${matchName(state, matchId)}, ${score[0]}–${score[1]}`
+    ? `Program monitor, ${info.label} output: ${matchName(state, matchId)}, ${score[0]}–${score[1]}${
+        onAir ? ", on the world feed" : ""
+      }`
     : "Program monitor: no match selected";
 
   return (
-    <figure className={styles.monitor} data-size={size} aria-label={label}>
+    <figure className={styles.monitor} data-size={size} data-tally={onAir ? "pgm" : undefined} aria-label={label}>
       <div className={styles.screen}>
         <PitchCanvas
           matchId={matchId}
@@ -75,11 +80,11 @@ export function ProgramMonitor({ matchId, output, renderer, size = "full" }: Pro
         {matchId ? (
           <div className={styles.bug} aria-hidden="true">
             <span className={styles.bugTeam}>{clubShort(home)}</span>
-            <span className={`${styles.bugScore} mono`}>
+            <span className={styles.bugScore}>
               {score[0]}–{score[1]}
             </span>
             <span className={styles.bugTeam}>{clubShort(away)}</span>
-            <span className={`${styles.bugMin} mono`}>{minuteLabel(minute, finished)}</span>
+            <span className={styles.bugMin}>{minuteLabel(minute, finished)}</span>
             {reds[0] || reds[1] ? (
               <span className={styles.bugReds} title="red cards">
                 {reds[0]}·{reds[1]}
@@ -87,12 +92,6 @@ export function ProgramMonitor({ matchId, output, renderer, size = "full" }: Pro
             ) : null}
           </div>
         ) : null}
-        <div className={styles.out} aria-hidden="true">
-          <span className="territory" data-territory={output}>
-            {info.code}
-          </span>
-          {delay ? <span className={styles.delay}>+{matchClock(delay)} delay</span> : null}
-        </div>
         {mode === "ograf" ? (
           // OGraf hook: the backend's renderer page draws this output's graphics over the pitch.
           <iframe
@@ -103,6 +102,19 @@ export function ProgramMonitor({ matchId, output, renderer, size = "full" }: Pro
         ) : graphic ? (
           <GraphicCard key={graphic.id} item={graphic} cue={cue} output={output} story={story} />
         ) : null}
+      </div>
+      <div className={`umd ${styles.umd}`} aria-hidden="true">
+        <span className="lamp" data-on={onAir ? "pgm" : undefined} />
+        <span className={styles.umdName}>
+          {onAir ? "PGM · " : ""}
+          {matchId ? matchName(state, matchId) : "No match"}
+        </span>
+        <span className={styles.out}>
+          <span className="territory" data-territory={output}>
+            {info.code}
+          </span>
+          {delay ? <span className={styles.delay}>+{matchClock(delay)} delay</span> : null}
+        </span>
       </div>
     </figure>
   );
