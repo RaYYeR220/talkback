@@ -2,8 +2,10 @@
 
 The controller talks to the server only through the standard OGraf Server API, so it can drive
 any compliant server. Times are match-clock milliseconds; a territory's in-time is now plus its
-broadcast delay budget. Each layer holds one graphic at a time: a higher-priority cue pre-empts,
-anything else waits for the layer (or is dropped once it would air stale).
+broadcast delay budget. What a viewer sees (how long a graphic stays up, the preroll, the gap
+between graphics) is wall-clock time, stretched into match time by the playout speed. Each layer
+holds one graphic at a time: a higher-priority cue pre-empts, anything else waits for the layer
+(or is dropped once it would air stale).
 """
 
 from __future__ import annotations
@@ -298,11 +300,12 @@ class OGrafClient:
 
 class GraphicsOp:
     def __init__(self, *, outputs: dict[str, str] | None = None, languages: dict[str, str] | None = None,
-                 graphics_dir: Path = GRAPHICS_DIR, preroll_ms: int = PREROLL_MS):
+                 graphics_dir: Path = GRAPHICS_DIR, preroll_ms: int = PREROLL_MS, speed: float = 1.0):
         self.outputs = outputs if outputs is not None else {t: t for t in OUTPUTS if t != PRESENTER}
         self.languages = languages if languages is not None else dict(LANGUAGES)
         self.schemas = load_schemas(graphics_dir)
         self.preroll_ms = preroll_ms
+        self.speed = speed  # match seconds per wall-clock second
         self.log: deque[str] = deque(maxlen=1_000)
         self._slots: dict[tuple[str, int], list[_Slot]] = {}
         self._queue: list[GraphicAction] = []
@@ -329,7 +332,7 @@ class GraphicsOp:
         fact = cited_fact(cue, evidence)
         tpl = TEMPLATES["ifb"] if presenter else card_template(cue.template, fact)
         key = f"{cue.id}@{renderer}"
-        if any(s.key == key for slots in self._slots.values() for s in slots):
+        if any(s.key == key and s.end > now_t for slots in self._slots.values() for s in slots):
             return []
         at = now_t + delay_ms
         expires = cue.created_t + cue.max_age_ms + delay_ms
@@ -337,12 +340,13 @@ class GraphicsOp:
             return self._drop(cue.id, territory, "stale before air")
         slots = self._slots.setdefault((renderer, int(tpl.layer)), [])
         slots[:] = [s for s in slots if s.end > now_t]
-        span = (lambda start: expires - start) if tpl.duration_ms is None else (lambda start: tpl.duration_ms)
+        shown = None if tpl.duration_ms is None else self._match_ms(tpl.duration_ms)
+        span = (lambda start: expires - start) if shown is None else (lambda start: shown)
         for _ in range(len(slots) + 1):
             blockers = [s for s in slots if _overlaps(s, at, at + span(at)) and not self._beats(tpl, s)]
             if not blockers:
                 break
-            at = max(s.end for s in blockers) + GAP_MS
+            at = max(s.end for s in blockers) + self._match_ms(GAP_MS)
         if at >= expires:
             return self._drop(cue.id, territory, f"layer {int(tpl.layer)} busy until the cue expires")
         until = at + span(at)
@@ -354,13 +358,24 @@ class GraphicsOp:
         data = self.shape(tpl, cue, verdict.text, territory, at, until, fact)
         common = {"renderer_id": renderer, "graphic_id": tpl.graphic_id, "layer": int(tpl.layer), "key": key,
                   "cue_id": cue.id}
+        preroll = self._match_ms(self.preroll_ms)
         out += [
-            GraphicAction(action="load", data=data, at_ms=max(now_t, at - self.preroll_ms), until_ms=until, **common),
+            GraphicAction(action="load", data=data, at_ms=max(now_t, at - preroll), until_ms=until, **common),
             GraphicAction(action="play", at_ms=at, until_ms=until, **common),
             GraphicAction(action="stop", at_ms=until, **common),
         ]
         self._enqueue(out)
         return out
+
+    def rebase(self, delta_ms: int) -> None:
+        """Move every booking by delta_ms: the match clock restarted (a new run or replay loop), and
+        what is booked keeps its wall-clock schedule."""
+        self._queue = [a.model_copy(update={"at_ms": a.at_ms + delta_ms,
+                                            "until_ms": None if a.until_ms is None else a.until_ms + delta_ms})
+                       for a in self._queue]
+        for slots in self._slots.values():
+            for s in slots:
+                s.start, s.end = s.start + delta_ms, s.end + delta_ms
 
     def retire(self, cue_id: str, now_t: int) -> list[GraphicAction]:
         """Take a cue's graphics off now: the IFB line was spoken, or the producer pulled it."""
@@ -412,6 +427,9 @@ class GraphicsOp:
         self._enqueue(out)
         return out
 
+    def _match_ms(self, wall_ms: int) -> int:
+        return round(wall_ms * self.speed)
+
     def _beats(self, tpl: Template, slot: _Slot) -> bool:
         return tpl.priority > slot.priority or (tpl.replace_equal and tpl.priority == slot.priority)
 
@@ -457,7 +475,9 @@ class GraphicsOp:
         elif gid == "talkback-story-card":
             raw["kind"] = "STORY"
         elif gid == "talkback-ifb":
-            raw.update(label=IFB_LABELS.get(cue.template, "CUE"), countdownMs=max(0, until - at), cueId=cue.id)
+            # the strip counts down on the presenter's screen, so in wall-clock time
+            raw.update(label=IFB_LABELS.get(cue.template, "CUE"), countdownMs=max(0, round((until - at) / self.speed)),
+                       cueId=cue.id)
         raw["dir"] = "rtl" if is_rtl(text) else "ltr"
         if lang := self.languages.get(territory):
             raw["lang"] = lang

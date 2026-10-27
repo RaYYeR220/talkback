@@ -175,6 +175,25 @@ def test_a_newer_ifb_replaces_the_current_one(op):
     assert newer[0].action == "stop" and newer[0].cue_id == "P1" and by(newer, "play")[0].at_ms == NOW + 4_000
 
 
+def test_what_a_viewer_sees_lasts_wall_clock_time_at_any_playout_speed():
+    op = GraphicsOp(speed=10.0)
+    load, play, _ = op.plan(make_cue("lower_third", max_age_ms=120_000), "uk", NOW, delay_ms=20_000)
+    assert load.at_ms == NOW + 20_000 - PREROLL_MS * 10 and play.until_ms - play.at_ms == 6_000 * 10
+    ifb = op.plan(make_cue(audience="presenter", cue_id="P1", max_age_ms=20_000), "uk", NOW)[0]
+    assert ifb.data["countdownMs"] == 2_000, "the strip counts down in wall-clock time"
+
+
+def test_rebase_moves_every_booking_and_frees_finished_ones(op):
+    op.plan(make_cue("lower_third", cue_id="S"), "uk", NOW, delay_ms=5_000)
+    op.plan(make_cue("story_card", cue_id="T"), "uk", NOW - 10_000)
+    op.due(NOW)
+    op.rebase(-NOW)
+    assert [(a.cue_id, a.action, a.at_ms) for a in op.pending] == [("S", "load", 4_500), ("S", "play", 5_000),
+                                                                    ("S", "stop", 11_000)]
+    assert op.plan(make_cue("lower_third", cue_id="S"), "uk", 1_000) == [], "still booked"
+    assert op.plan(make_cue("story_card", cue_id="T", created_t=1_000), "uk", 1_000), "its earlier airing is over"
+
+
 def test_unknown_template_falls_back_to_a_lower_third(op):
     play = by(op.plan(make_cue("mystery_card"), "uk", NOW), "play")[0]
     assert play.graphic_id == "talkback-lower-third"
