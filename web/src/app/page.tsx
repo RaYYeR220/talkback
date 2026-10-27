@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { LandingAir } from "@/components/landing/LandingAir";
+import { LandingHero } from "@/components/landing/LandingHero";
 import styles from "@/components/landing/Landing.module.css";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { SiteHeader } from "@/components/site/SiteHeader";
 
 const STEPS = [
   {
@@ -29,38 +28,34 @@ const CREW = [
   { name: "Producer", kind: "human", role: "approves or rejects holds; silence means not aired" },
   { name: "Graphics Op", kind: "code", role: "plays cleared cues as OGraf graphics per output" },
   { name: "Prompter", kind: "code", role: "times presenter cues into the talkback ear" },
-  { name: "Director", kind: "scoring + model", role: "picks the world feed; runs the live table and its swings" },
+  { name: "Director", kind: "scoring + model", role: "picks the world feed; runs the live table and its swings", pgm: true },
+];
+
+const LINKS = [
+  {
+    href: "/gallery",
+    title: "Console",
+    body: "The wall, the program monitor, the story board, the clearance matrix and the producer seat.",
+  },
+  { href: "/fan", title: "Fan view", body: "Pick your territory, depth and club, and get the lines cleared for you." },
+  {
+    href: "/proof",
+    title: "Proof",
+    body: "Story Recall against a single-model baseline, and everything else we measure.",
+  },
 ];
 
 export default function Home() {
   return (
     <>
-      <SiteHeader current="/" />
-      <main id="main">
-        <section className={styles.hero} aria-labelledby="claim">
-          <div className={styles.heroText}>
-            <p className="kicker">Ten matches at once · five territories · one gallery</p>
-            <h1 id="claim" className={`display ${styles.claim}`}>
-              The stat was right. <em>The story was missing.</em>
-            </h1>
-            <p className={styles.lede}>
-              Talkback is the editorial gallery for a whole matchday. Its agents find the storylines a busy afternoon
-              buries, prove every line they want to say, and clear each one for every territory it airs in, before it
-              reaches the presenter&apos;s ear.
-            </p>
-            <div className={styles.cta}>
-              <Link href="/gallery" className="btn btn-primary">
-                Watch the matchday
-              </Link>
-            </div>
-          </div>
-          <LandingAir />
-        </section>
-
+      <LandingHero>
         <section className={styles.section} aria-labelledby="how">
-          <h2 id="how" className={`display ${styles.h2}`}>
-            How it works
-          </h2>
+          <header className={styles.sectionHead}>
+            <p className="eyebrow">The signal path</p>
+            <h2 id="how" className={`display ${styles.h2}`}>
+              How it works
+            </h2>
+          </header>
           <ol className={styles.steps}>
             {STEPS.map((s, i) => (
               <li key={s.verb} className={styles.step}>
@@ -73,9 +68,12 @@ export default function Home() {
         </section>
 
         <section className={styles.section} aria-labelledby="crew">
-          <h2 id="crew" className={`display ${styles.h2}`}>
-            The crew
-          </h2>
+          <header className={styles.sectionHead}>
+            <p className="eyebrow">Ten seats · one gallery</p>
+            <h2 id="crew" className={`display ${styles.h2}`}>
+              The crew
+            </h2>
+          </header>
           <p className={styles.sectionLede}>
             One workflow per moment, ten matches in parallel. The gate is never the author of what it checks, and any
             error, timeout or unreadable answer kills the line. Above the matches, the <strong>Director</strong> works
@@ -83,11 +81,19 @@ export default function Home() {
             chances, explaining every swing by the match that caused it.
           </p>
           <ol className={styles.crew}>
-            {CREW.map((a) => (
-              <li key={a.name} className={styles.agent}>
-                <span className={styles.agentName}>{a.name}</span>
-                <span className={`${styles.agentKind} mono`}>{a.kind}</span>
-                <span className={styles.agentRole}>{a.role}</span>
+            {CREW.map((a, i) => (
+              <li key={a.name} className={styles.agent} data-pgm={a.pgm || undefined}>
+                <span className={styles.agentScreen}>
+                  <span className={`${styles.agentKind} mono`}>{a.kind}</span>
+                  <span className={styles.agentRole}>{a.role}</span>
+                </span>
+                <span className={`umd ${styles.agentUmd}`}>
+                  <span className="lamp" data-on={a.pgm ? "pgm" : undefined} aria-hidden="true" />
+                  <span className={`${styles.agentNo} mono`} aria-hidden="true">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className={styles.agentName}>{a.name}</span>
+                </span>
               </li>
             ))}
           </ol>
@@ -98,27 +104,24 @@ export default function Home() {
             Where to next
           </h2>
           <ul className={styles.links}>
-            <li>
-              <Link href="/gallery" className={styles.linkCard}>
-                <span className={styles.linkTitle}>Console</span>
-                <span>The wall, the program monitor, the story board, the clearance matrix and the producer seat.</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/fan" className={styles.linkCard}>
-                <span className={styles.linkTitle}>Fan view</span>
-                <span>Pick your territory, depth and club, and get the lines cleared for you.</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/proof" className={styles.linkCard}>
-                <span className={styles.linkTitle}>Proof</span>
-                <span>Story Recall against a single-model baseline, and everything else we measure.</span>
-              </Link>
-            </li>
+            {LINKS.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className={styles.linkCard}>
+                  <span className={styles.linkScreen}>
+                    <span className={styles.linkTitle}>{l.title}</span>
+                    <span>{l.body}</span>
+                  </span>
+                  <span className={`umd ${styles.linkUmd}`} aria-hidden="true">
+                    <span className="lamp" />
+                    <span>{l.href}</span>
+                    <span className={styles.arrow}>→</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
           </ul>
         </section>
-      </main>
+      </LandingHero>
       <SiteFooter />
     </>
   );
