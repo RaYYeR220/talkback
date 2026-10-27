@@ -45,3 +45,10 @@ def test_replay_fills_the_ledger(client):
 def test_frames_404_without_tracking(client):
     c, _ = client
     assert c.get("/api/frames/MD12-F01").status_code == 404
+
+
+@pytest.mark.parametrize("speed", [0, 0.001, 500])
+def test_live_speed_is_bounded(client, speed):
+    c, svc = client
+    assert c.post("/api/live", json={"speed": speed}).status_code == 422
+    assert svc.gallery.mode != "live"

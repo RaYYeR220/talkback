@@ -19,7 +19,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from talkback.gallery.bus import Broadcaster, FileSource
 from talkback.ograf.graphics_op import OGrafClient
@@ -34,7 +34,8 @@ REPLAY_SPEED = float(os.environ.get("TALKBACK_REPLAY_SPEED", "10"))
 
 
 class StartRequest(BaseModel):
-    speed: float | None = None
+    # Below 1x a run would hold the only live slot for hours; above 20x the token rate outruns the budget.
+    speed: float | None = Field(default=None, ge=1, le=20)
 
 
 class Decision(BaseModel):
