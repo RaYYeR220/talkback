@@ -22,6 +22,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from talkback.gallery.bus import Broadcaster, FileSource
+from talkback.ograf.graphics_op import OGrafClient
+from talkback.ograf.server import OGrafServer
+from talkback.service.graphics import GraphicsDriver
 
 RUN_DIR = Path(os.environ.get("TALKBACK_RUN_DIR", "runs/md-2026"))
 REPLAY_FILE = os.environ.get("TALKBACK_REPLAY", "broadcast-replay.jsonl")
@@ -51,6 +54,7 @@ class Gallery:
         self.live_started: list[float] = []
         self.pool: ProcessPoolExecutor | None = None
         self.ledger: dict[str, dict] = {}
+        self.graphics: GraphicsDriver | None = None
 
     def recorded_events(self) -> dict:
         if not hasattr(self, "_events"):
@@ -117,6 +121,8 @@ class Gallery:
         self.pool = self.pool or ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1))
         self.runner = MatchdayRunner(self.run_dir, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__,
                                      self.bc, speed=speed, lab_pool=self.pool, run_id=self.run_id)
+        if self.graphics is not None:
+            self.graphics.speed = speed
         self.task = asyncio.create_task(self._live())
         return self.run_id
 
@@ -133,10 +139,21 @@ class Gallery:
 gallery = Gallery(RUN_DIR)
 
 
+ograf = OGrafServer()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import httpx
+
     gallery.task = asyncio.create_task(gallery.replay_loop())
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://talkback.local")
+    driver = GraphicsDriver(OGrafClient(http), speed=REPLAY_SPEED)
+    gallery.graphics = driver
+    graphics_task = asyncio.create_task(driver.run(gallery.bc.subscribe))
     yield
+    graphics_task.cancel()
+    await http.aclose()
     if gallery.task:
         gallery.task.cancel()
     if gallery.pool:
@@ -144,7 +161,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Talkback", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PUT", "DELETE"],
+                   allow_headers=["*"])
+ograf.mount(app, prefix="/ograf/v1", base="/ograf")
 
 
 @app.get("/api/health")

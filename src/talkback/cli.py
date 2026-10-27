@@ -36,6 +36,38 @@ def _gallery(run: Path, speed: float, until_min: float | None, out: Path | None)
     return stats
 
 
+def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | None, report: Path | None) -> dict:
+    from talkback.eval.baseline import load_lines, run_baseline, save_lines
+    from talkback.eval.score import Context, lines_from_broadcast, score
+    from talkback.gallery.llm import make_client
+
+    ctx = Context.load(run)
+    cut = int(until_min * 60_000) if until_min else None
+    if cut is not None:
+        ctx.events = [e for e in ctx.events if e.t <= cut]
+        ctx.key = ctx.key.model_copy(update={"items": [i for i in ctx.key.items
+                                                       if i.deadline == "live" and i.window_ms and i.window_ms[1] <= cut]})
+    baseline = baseline or broadcast.with_name(broadcast.stem + "-baseline.jsonl")
+    if baseline.exists():
+        base_lines = load_lines(baseline)
+    else:
+        base_lines = asyncio.run(run_baseline(ctx, make_client("fast")))
+        save_lines(base_lines, baseline)
+    ours = lines_from_broadcast(broadcast, "talkback")
+    ungated = lines_from_broadcast(broadcast, "talkback_without_clearance", include_killed=True)
+    if cut is not None:
+        ours = [l for l in ours if l.sim_t <= cut + 5 * 60_000]
+        ungated = [l for l in ungated if l.sim_t <= cut + 5 * 60_000]
+    result = score(ctx, ours + ungated + base_lines)
+    result["_meta"] = {"run": str(run), "broadcast": str(broadcast), "key_sha256": ctx.key.sha256(),
+                       "until_min": until_min}
+    out = json.dumps(result, indent=1)
+    if report:
+        report.write_text(out, encoding="utf-8", newline="\n")
+    print(out)
+    return result
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="talkback")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -47,6 +79,12 @@ def main(argv: list[str] | None = None) -> None:
     g.add_argument("--speed", type=float, default=10.0)
     g.add_argument("--until", type=float, default=None, help="stop after this many match minutes")
     g.add_argument("--out", type=Path, default=None)
+    e = sub.add_parser("eval", help="score a recorded gallery run against the sealed key and the baseline")
+    e.add_argument("--run", type=Path, default=Path("runs/md-2026"))
+    e.add_argument("--broadcast", type=Path, required=True)
+    e.add_argument("--baseline", type=Path, default=None, help="cached baseline lines (computed if missing)")
+    e.add_argument("--until", type=float, default=None, help="score only the first N match minutes")
+    e.add_argument("--report", type=Path, default=None)
     a = ap.parse_args(argv)
     if a.cmd == "matchday":
         from talkback.world.matchday import prepare_matchday, run_matchday_offline
@@ -54,6 +92,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"matchday written to {out}")
     elif a.cmd == "gallery":
         _gallery(a.run, a.speed, a.until, a.out)
+    elif a.cmd == "eval":
+        _eval(a.run, a.broadcast, a.baseline, a.until, a.report)
 
 
 if __name__ == "__main__":
