@@ -71,12 +71,22 @@ class WriterFailure(Exception):
     pass
 
 
+# Decimals a commentator would say, by unit. The number check accepts this rounding of a fact's value.
+_SPOKEN_DECIMALS = {"count": 0, "km": 1, "km/h": 1, "m": 1}
+
+
+def say(fact: Fact) -> str:
+    """The fact's value at broadcast precision: '0.33' xG, not '0.3331'."""
+    text = f"{fact.value:.{_SPOKEN_DECIMALS.get(fact.unit, 2)}f}"
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def evidence_prompt(moment: Moment, facts: list[Fact], lab: LabResult | None, stories: list[Storyline],
                     names: dict[str, str]) -> str:
     lines = [f"Moment {moment.id}: {moment.kind} at {moment.t // 60_000}' subject={moment.subject} "
              f"({names.get(moment.subject or '', '')}) detail={moment.detail}", "", "Facts (id | metric | subject | value | n):"]
     for f in facts:
-        lines.append(f"- {f.id} | {f.metric} | {f.subject} ({names.get(f.subject, '')}) | {f.value} | n={f.sample_size}")
+        lines.append(f"- {f.id} | {f.metric} | {f.subject} ({names.get(f.subject, '')}) | {say(f)} | n={f.sample_size}")
     lines.append("")
     lines.append("Experiments:")
     if lab and lab.experiments:
