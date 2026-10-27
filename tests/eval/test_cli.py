@@ -13,8 +13,9 @@ MIN = 60_000
 
 
 def _cue(match_id: str, t: int, text: str) -> dict:
+    verdicts = {"uk": {"verdict": "ON_AIR", "text": text}}
     return {"kind": "cue", "sim_t": t, "data": {"match_id": match_id, "text": text, "audience": "fan", "moment_t": t,
-                                                "latency_ms": 0, "verdicts": {"uk": {"verdict": "ON_AIR", "text": text}}}}
+                                                "latency_ms": 0, "verdicts": verdicts}}
 
 
 def _broadcast(path, cues: list[dict]):
