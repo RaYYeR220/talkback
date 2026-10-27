@@ -1,14 +1,14 @@
 .main {
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: var(--space-5) var(--gutter) var(--space-8);
+  padding: var(--space-6) var(--gutter) var(--space-8);
   display: grid;
   gap: var(--space-5);
 }
 
 .intro {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
   max-width: var(--prose-max);
 }
 
@@ -16,13 +16,14 @@
   font-size: var(--text-display-sm);
 }
 
+/* the fan's own small desk: a strip of hard controls */
 .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--space-4) var(--space-5);
   padding: var(--space-4);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--bezel);
   border-radius: var(--radius-3);
   background: var(--bg-raised);
 }
@@ -40,7 +41,7 @@
 }
 
 .check input {
-  accent-color: var(--accent);
+  accent-color: var(--fg);
   width: 1rem;
   height: 1rem;
 }
@@ -83,7 +84,7 @@
   gap: var(--space-2);
   margin-top: var(--space-3);
   padding: var(--space-4);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--bezel);
   border-radius: var(--radius-3);
   background: var(--bg-raised);
   font-size: var(--text-sm);
@@ -92,6 +93,7 @@
 .reasonList {
   display: grid;
   gap: 1px;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
@@ -103,43 +105,63 @@
 }
 
 .h2 {
-  font-size: var(--text-sm);
+  font-family: var(--font-umd);
+  font-size: var(--text-umd);
   font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-umd);
+  text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .cards {
   display: grid;
-  gap: var(--space-3);
+  gap: 18px 16px;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
 }
 
+/* a story card is a small screen with its badge on a UMD */
 .card {
   display: grid;
   gap: var(--space-2);
   align-content: start;
-  padding: var(--space-4);
-  border: var(--hairline) solid var(--line);
-  border-inline-start: 3px solid var(--accent);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: var(--hairline) solid var(--bezel);
   border-radius: var(--radius-2);
   background: var(--bg-raised);
   font-size: var(--text-xs);
 }
 
 .badge {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-caps);
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-umd);
+  font-weight: var(--weight-strong);
+  font-size: 0.875rem;
+  letter-spacing: var(--tracking-umd);
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--fg-muted);
+}
+
+.badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--lamp-off);
 }
 
 .cardText {
   font-family: var(--font-display);
+  font-weight: var(--weight-medium);
   font-size: var(--text-xl);
   line-height: var(--leading-snug);
+  letter-spacing: -0.02em;
 }
 
 .cardText[dir="rtl"] {
   font-family: var(--font-arabic);
   font-size: var(--text-lg);
+  letter-spacing: 0;
 }

@@ -121,6 +121,7 @@ function FanBody() {
       </SiteHeader>
       <main id="main" className={styles.main}>
         <header className={styles.intro}>
+          <p className="eyebrow">Fan view</p>
           <h1 className={`display ${styles.title}`}>Your matchday</h1>
           <p className="muted">
             Every line here was cleared for your territory. Pick where you watch, how deep you want it, and your club.
