@@ -47,8 +47,18 @@ def _download(account: str, prefix: str, target: Path, names: tuple[str, ...]) -
     for name in names:
         path = target / name
         if not path.exists():
-            with open(path, "wb") as fh:
-                fh.write(c.download_blob(f"{prefix}/{name}").readall())
+            _fetch(c, f"{prefix}/{name}", path)
+
+
+def _fetch(container, blob: str, path: Path) -> None:
+    """Download to a temporary name first, so a failed transfer never leaves a truncated file in the cache."""
+    part = path.with_name(path.name + ".part")
+    try:
+        data = container.download_blob(blob).readall()
+        part.write_bytes(data)
+        part.replace(path)
+    finally:
+        part.unlink(missing_ok=True)
 
 
 class BlobSnapshotStore(SnapshotStore):
@@ -65,8 +75,7 @@ class BlobSnapshotStore(SnapshotStore):
             d.mkdir(parents=True, exist_ok=True)
             c = _container()
             for blob in c.list_blobs(name_starts_with=f"{self.prefix}/snapshots/{match_id}/"):
-                with open(d / Path(blob.name).name, "wb") as fh:
-                    fh.write(c.download_blob(blob.name).readall())
+                _fetch(c, blob.name, d / Path(blob.name).name)
             self._synced.add(match_id)
         return super().times(match_id)
 

@@ -129,3 +129,16 @@ def test_prewarm_failure_is_logged_not_raised(caplog):
         assert runs.prewarm(runs.RunCache(load), "md-2026") is False
     assert "md-2026" in caplog.text
     assert runs.prewarm(runs.RunCache(str.upper), "md-2026") is True
+
+
+def test_a_failed_download_leaves_nothing_cached(tmp_path, monkeypatch):
+    from talkback.hosted import runstore
+
+    class Container:
+        def download_blob(self, name):
+            raise ConnectionError("storage unreachable")
+
+    monkeypatch.setattr(runstore, "_container", Container)
+    with pytest.raises(ConnectionError):
+        runstore._download("https://example.blob.core.windows.net", "md-9", tmp_path, ("world.json",))
+    assert list(tmp_path.iterdir()) == []
