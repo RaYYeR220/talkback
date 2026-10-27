@@ -135,10 +135,11 @@ class ArchivistExec(Executor):
             try:
                 text = await remote.ask("archivist", with_run(self.deps.run_name,
                                                               moment_prompt(job.moment, board, self.deps.world)))
-                await ctx.send_message(Stories(job, stories_from_answer(text, board), "a2a", _ms(t0)))
+                await ctx.send_message(Stories(job, stories_from_answer(text, board), remote.via("archivist"),
+                                               _ms(t0)))
                 return
             except Exception as exc:  # noqa: BLE001 - fall back to the in-process archivist
-                note = f"degraded: a2a {type(exc).__name__}, ran in-process"
+                note = f"degraded: {remote.via('archivist')} {type(exc).__name__}, ran in-process"
         try:
             agent = make_archivist(self.deps.client("strong"), self.deps.world, board)
             stories = await pick_storylines(agent, job.moment, board, self.deps.world)
@@ -169,13 +170,13 @@ class LabExec(Executor):
             try:
                 sealed = LabResult.model_validate_json(await remote.ask("lab", with_run(self.deps.run_name, prompt)))
                 ok = any(x.metric == "threat" and (x.ci95[0] > 0 or x.ci95[1] < 0) for x in sealed.experiments)
-                sealed = sealed.model_copy(update={"supported": ok, "status": "a2a"})
+                sealed = sealed.model_copy(update={"supported": ok, "status": remote.via("lab")})
                 if sealed.experiments:
-                    await ctx.send_message(LabOut(job, sealed, "a2a", _ms(t0)))
+                    await ctx.send_message(LabOut(job, sealed, remote.via("lab"), _ms(t0)))
                     return
-                note = "degraded: a2a ran no experiment, ran in-process"
+                note = f"degraded: {remote.via('lab')} ran no experiment, ran in-process"
             except Exception as exc:  # noqa: BLE001 - fall through to the in-process Lab
-                note = f"degraded: a2a {type(exc).__name__}, ran in-process"
+                note = f"degraded: {remote.via('lab')} {type(exc).__name__}, ran in-process"
         try:
             agent = make_lab(self.deps.client("strong"), backend, m.id, m.match_id)
             result = finalize((await agent.run(prompt)).text, backend)

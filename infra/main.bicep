@@ -251,6 +251,13 @@ var labA2aUrl = agentsOnAca
   ? 'https://${names.labAca}.internal.${environment.outputs.defaultDomain}'
   : '${foundry.outputs.projectEndpoint}/agents/${labAgentName}/endpoint/protocols/a2a'
 var agentCardPath = agentsOnAca ? '.well-known/agent-card.json' : 'agentCard/v1.0'
+// Foundry's A2A gateway serves prompt agents only; the gallery calls the hosted agents on their Responses endpoint.
+var archivistResponsesUrl = agentsOnAca
+  ? ''
+  : '${foundry.outputs.projectEndpoint}/agents/${archivistAgentName}/endpoint/protocols/openai/responses?api-version=v1'
+var labResponsesUrl = agentsOnAca
+  ? ''
+  : '${foundry.outputs.projectEndpoint}/agents/${labAgentName}/endpoint/protocols/openai/responses?api-version=v1'
 
 var telemetryEnv = [
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection-string' }
@@ -332,6 +339,8 @@ module talkback 'modules/container-app.bicep' = {
       { name: 'TALKBACK_CORS_ORIGINS', value: webUrl }
       { name: 'ARCHIVIST_A2A_URL', value: archivistA2aUrl }
       { name: 'LAB_A2A_URL', value: labA2aUrl }
+      { name: 'ARCHIVIST_RESPONSES_URL', value: archivistResponsesUrl }
+      { name: 'LAB_RESPONSES_URL', value: labResponsesUrl }
       { name: 'A2A_AGENT_CARD_PATH', value: agentCardPath }
       { name: 'A2A_VERSION', value: '1.0' }
       { name: 'A2A_TOKEN_SCOPE', value: 'https://ai.azure.com/.default' }
@@ -583,5 +592,7 @@ output ARCHIVIST_AGENT_NAME string = archivistAgentName
 output LAB_AGENT_NAME string = labAgentName
 output ARCHIVIST_A2A_URL string = archivistA2aUrl
 output LAB_A2A_URL string = labA2aUrl
+output ARCHIVIST_RESPONSES_URL string = archivistResponsesUrl
+output LAB_RESPONSES_URL string = labResponsesUrl
 output A2A_AGENT_CARD_PATH string = agentCardPath
 output BUDGET_NAME string = empty(budgetContactEmail) ? 'none (set BUDGET_CONTACT_EMAIL and re-provision)' : 'budget-talkback-${budgetMonth}'

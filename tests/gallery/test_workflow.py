@@ -139,6 +139,9 @@ class _OfflineRemote:
     def enabled(self, name: str) -> bool:
         return True
 
+    def via(self, name: str) -> str:
+        return "a2a"
+
     async def ask(self, name: str, prompt: str) -> str:
         self.prompts.append((name, prompt))
         raise ConnectionError("agent unreachable")

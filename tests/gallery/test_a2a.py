@@ -64,3 +64,42 @@ def test_dead_endpoint_raises_so_the_workflow_can_fall_back():
     remote = RemoteAgents(archivist_url=f"http://127.0.0.1:{_free_port()}", lab_url=None)
     with pytest.raises(Exception):
         asyncio.run(remote.ask("archivist", "hello"))
+
+
+def test_hosted_agent_reuses_warm_sessions_over_responses():
+    import httpx
+
+    from talkback.gallery.remote import HostedAgent
+
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        if "fail" in body["input"]:
+            return httpx.Response(500, json={"error": {"message": "boom"}})
+        sid = body.get("agent_session_id") or f"s{len(seen)}"
+        return httpx.Response(200, json={"status": "completed", "agent_session_id": sid, "output": [
+            {"type": "reasoning", "summary": []},
+            {"type": "message", "content": [{"type": "output_text", "text": '{"storylines": []}'}]}]})
+
+    agent = HostedAgent("https://x.services.ai.azure.com/agents/a/endpoint/protocols/openai/responses",
+                        http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+
+    async def go():
+        first = await agent.ask("Run: md-2026\nhello")
+        second = await agent.ask("Run: md-2026\nagain")
+        with pytest.raises(httpx.HTTPStatusError):
+            await agent.ask("fail")
+        return first, second
+
+    first, second = asyncio.run(go())
+    assert first == second == '{"storylines": []}'
+    assert "agent_session_id" not in seen[0] and seen[1]["agent_session_id"] == "s1"
+    assert seen[2]["agent_session_id"] == "s1"  # the warm session was lent out ...
+    assert agent.idle == []  # ... and not returned after a failed call
+
+
+def test_remote_agents_pick_the_protocol_from_the_url():
+    r = RemoteAgents("https://x/agents/a/endpoint/protocols/openai/responses?api-version=v1", "http://127.0.0.1:9/a2a")
+    assert r.via("archivist") == "hosted" and r.via("lab") == "a2a"
