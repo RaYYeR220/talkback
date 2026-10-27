@@ -1,0 +1,17 @@
+{
+  "enum": [
+    "success",
+    "fail",
+    "out",
+    "on_target",
+    "off_target",
+    "blocked",
+    "saved",
+    "goal",
+    "yellow",
+    "red",
+    "none"
+  ],
+  "title": "Outcome",
+  "type": "string"
+}

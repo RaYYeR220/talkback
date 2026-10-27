@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "away_goals": {
+      "title": "Away Goals",
+      "type": "integer"
+    },
+    "away_red": {
+      "default": 0,
+      "title": "Away Red",
+      "type": "integer"
+    },
+    "game_state_hash": {
+      "title": "Game State Hash",
+      "type": "string"
+    },
+    "home_goals": {
+      "title": "Home Goals",
+      "type": "integer"
+    },
+    "home_red": {
+      "default": 0,
+      "title": "Home Red",
+      "type": "integer"
+    },
+    "match_id": {
+      "title": "Match Id",
+      "type": "string"
+    },
+    "period": {
+      "title": "Period",
+      "type": "integer"
+    },
+    "possession_team": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Possession Team"
+    },
+    "t": {
+      "title": "T",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "match_id",
+    "t",
+    "period",
+    "home_goals",
+    "away_goals",
+    "game_state_hash"
+  ],
+  "title": "MatchState",
+  "type": "object"
+}

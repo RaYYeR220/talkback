@@ -1,0 +1,88 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "baseline": {
+      "title": "Baseline",
+      "type": "number"
+    },
+    "ci95": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Ci95",
+      "type": "array"
+    },
+    "counterfactual": {
+      "title": "Counterfactual",
+      "type": "number"
+    },
+    "effect": {
+      "title": "Effect",
+      "type": "number"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "intervention": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Intervention",
+      "type": "object"
+    },
+    "metric": {
+      "title": "Metric",
+      "type": "string"
+    },
+    "moment_id": {
+      "title": "Moment Id",
+      "type": "string"
+    },
+    "n": {
+      "title": "N",
+      "type": "integer"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "moment_id",
+    "intervention",
+    "n",
+    "metric",
+    "baseline",
+    "counterfactual",
+    "effect",
+    "ci95",
+    "seed"
+  ],
+  "title": "Experiment",
+  "type": "object"
+}

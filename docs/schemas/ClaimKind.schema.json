@@ -1,0 +1,11 @@
+{
+  "enum": [
+    "numeric",
+    "comparative",
+    "causal",
+    "storyline",
+    "descriptive"
+  ],
+  "title": "ClaimKind",
+  "type": "string"
+}

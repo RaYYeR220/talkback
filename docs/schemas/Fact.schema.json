@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "computed_at": {
+      "title": "Computed At",
+      "type": "integer"
+    },
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "match_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Match Id"
+    },
+    "metric": {
+      "title": "Metric",
+      "type": "string"
+    },
+    "sample_size": {
+      "title": "Sample Size",
+      "type": "integer"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "unit": {
+      "title": "Unit",
+      "type": "string"
+    },
+    "value": {
+      "title": "Value",
+      "type": "number"
+    },
+    "window": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Window",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "match_id",
+    "metric",
+    "subject",
+    "value",
+    "unit",
+    "window",
+    "sample_size",
+    "evidence",
+    "computed_at"
+  ],
+  "title": "Fact",
+  "type": "object"
+}

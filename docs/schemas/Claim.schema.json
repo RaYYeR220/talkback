@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "ClaimKind": {
+      "enum": [
+        "numeric",
+        "comparative",
+        "causal",
+        "storyline",
+        "descriptive"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/ClaimKind"
+    },
+    "refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Refs",
+      "type": "array"
+    },
+    "span": {
+      "title": "Span",
+      "type": "string"
+    },
+    "strength": {
+      "default": 0,
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Strength",
+      "type": "integer"
+    },
+    "subject": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Subject"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Value"
+    }
+  },
+  "required": [
+    "span",
+    "kind"
+  ],
+  "title": "Claim",
+  "type": "object"
+}

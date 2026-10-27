@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "span": {
+          "title": "Span",
+          "type": "string"
+        },
+        "strength": {
+          "default": 0,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "integer"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "span",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "numeric",
+        "comparative",
+        "causal",
+        "storyline",
+        "descriptive"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "TerritoryVerdict": {
+      "additionalProperties": false,
+      "properties": {
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "territory": {
+          "title": "Territory",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "territory",
+        "verdict",
+        "text"
+      ],
+      "title": "TerritoryVerdict",
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "ON_AIR",
+        "HOLD_FOR_PRODUCER",
+        "KILLED"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "audience": {
+      "title": "Audience",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "created_t": {
+      "title": "Created T",
+      "type": "integer"
+    },
+    "data": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Data",
+      "type": "object"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lang": {
+      "default": "en",
+      "title": "Lang",
+      "type": "string"
+    },
+    "match_id": {
+      "title": "Match Id",
+      "type": "string"
+    },
+    "max_age_ms": {
+      "title": "Max Age Ms",
+      "type": "integer"
+    },
+    "moment_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Moment Id"
+    },
+    "template": {
+      "title": "Template",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "universal_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Universal Reasons",
+      "type": "array"
+    },
+    "valid_state_hash": {
+      "title": "Valid State Hash",
+      "type": "string"
+    },
+    "verdicts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TerritoryVerdict"
+      },
+      "title": "Verdicts",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "match_id",
+    "audience",
+    "text",
+    "template",
+    "valid_state_hash",
+    "max_age_ms",
+    "created_t"
+  ],
+  "title": "Cue",
+  "type": "object"
+}

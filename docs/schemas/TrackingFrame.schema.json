@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "PlayerPos": {
+      "additionalProperties": false,
+      "properties": {
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "player_id",
+        "x",
+        "y",
+        "speed"
+      ],
+      "title": "PlayerPos",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "ball": {
+      "maxItems": 3,
+      "minItems": 3,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Ball",
+      "type": "array"
+    },
+    "match_id": {
+      "title": "Match Id",
+      "type": "string"
+    },
+    "players": {
+      "items": {
+        "$ref": "#/$defs/PlayerPos"
+      },
+      "title": "Players",
+      "type": "array"
+    },
+    "t": {
+      "title": "T",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "match_id",
+    "t",
+    "ball",
+    "players"
+  ],
+  "title": "TrackingFrame",
+  "type": "object"
+}

@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "Verdict": {
+      "enum": [
+        "ON_AIR",
+        "HOLD_FOR_PRODUCER",
+        "KILLED"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "territory": {
+      "title": "Territory",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict"
+    }
+  },
+  "required": [
+    "territory",
+    "verdict",
+    "text"
+  ],
+  "title": "TerritoryVerdict",
+  "type": "object"
+}

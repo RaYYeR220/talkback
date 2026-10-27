@@ -1,0 +1,32 @@
+{
+  "enum": [
+    "kickoff",
+    "pass",
+    "carry",
+    "dribble",
+    "cross",
+    "shot",
+    "goal",
+    "save",
+    "block",
+    "pressure",
+    "tackle",
+    "interception",
+    "clearance",
+    "ball_recovery",
+    "foul",
+    "card",
+    "substitution",
+    "injury",
+    "throw_in",
+    "corner",
+    "free_kick",
+    "goal_kick",
+    "penalty",
+    "offside",
+    "period_start",
+    "period_end"
+  ],
+  "title": "EventType",
+  "type": "string"
+}

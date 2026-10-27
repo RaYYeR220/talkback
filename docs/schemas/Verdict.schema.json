@@ -1,0 +1,9 @@
+{
+  "enum": [
+    "ON_AIR",
+    "HOLD_FOR_PRODUCER",
+    "KILLED"
+  ],
+  "title": "Verdict",
+  "type": "string"
+}

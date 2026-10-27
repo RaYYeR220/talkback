@@ -1,0 +1,202 @@
+{
+  "$defs": {
+    "EventType": {
+      "enum": [
+        "kickoff",
+        "pass",
+        "carry",
+        "dribble",
+        "cross",
+        "shot",
+        "goal",
+        "save",
+        "block",
+        "pressure",
+        "tackle",
+        "interception",
+        "clearance",
+        "ball_recovery",
+        "foul",
+        "card",
+        "substitution",
+        "injury",
+        "throw_in",
+        "corner",
+        "free_kick",
+        "goal_kick",
+        "penalty",
+        "offside",
+        "period_start",
+        "period_end"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "Outcome": {
+      "enum": [
+        "success",
+        "fail",
+        "out",
+        "on_target",
+        "off_target",
+        "blocked",
+        "saved",
+        "goal",
+        "yellow",
+        "red",
+        "none"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "end_x": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End X"
+    },
+    "end_y": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "End Y"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "match_id": {
+      "title": "Match Id",
+      "type": "string"
+    },
+    "other_player_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Other Player Id"
+    },
+    "outcome": {
+      "$ref": "#/$defs/Outcome",
+      "default": "none"
+    },
+    "period": {
+      "title": "Period",
+      "type": "integer"
+    },
+    "player_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Player Id"
+    },
+    "possession_id": {
+      "default": 0,
+      "title": "Possession Id",
+      "type": "integer"
+    },
+    "qualifiers": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "title": "Qualifiers",
+      "type": "object"
+    },
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "t": {
+      "title": "T",
+      "type": "integer"
+    },
+    "team_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Team Id"
+    },
+    "type": {
+      "$ref": "#/$defs/EventType"
+    },
+    "x": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "X"
+    },
+    "y": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Y"
+    }
+  },
+  "required": [
+    "id",
+    "match_id",
+    "seq",
+    "t",
+    "period",
+    "type"
+  ],
+  "title": "Event",
+  "type": "object"
+}

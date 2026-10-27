@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "player_id": {
+      "title": "Player Id",
+      "type": "string"
+    },
+    "speed": {
+      "title": "Speed",
+      "type": "number"
+    },
+    "x": {
+      "title": "X",
+      "type": "number"
+    },
+    "y": {
+      "title": "Y",
+      "type": "number"
+    }
+  },
+  "required": [
+    "player_id",
+    "x",
+    "y",
+    "speed"
+  ],
+  "title": "PlayerPos",
+  "type": "object"
+}
