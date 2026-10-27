@@ -89,3 +89,19 @@ compare.
 * **MENA embargo (gallery)** — the territory desk judged the two-minute window on the gallery's compressed clock and
   only when the line was cleared; another match could score while a line waited to air. The window is now judged at
   the line's air time as a live broadcast would see it, and again at the moment it airs.
+
+## Held-out matchdays: the evaluation of record (2026-10-27, before they were run)
+
+The gallery was changed while matchdays 2026–2030 were being scored (see the amendments above), so those five are
+the **development set** from here on: their results are reported, but they are not the evaluation of record. The
+record is five new matchdays the system has never been run on, generated and sealed now, before any run, and played
+by the build at commit `d3bf513` (or a later commit that changes no file under `src/talkback/`). Same systems,
+metrics and scoring code as above; at most two matchdays play at a time.
+
+| Seed | Key SHA-256 | Must-surface storylines |
+|---|---|---|
+| 2031 | `da564bdbeba1ad41fd47cc09c1b13ff8bd799a2383a5d04e2d775773a15a904e` | 9 |
+| 2032 | `28c3880591d6be4b94c62c94495c01b67baafebef8d84ed0ff9a7b30ab3c7d77` | 9 |
+| 2033 | `63511255a26110c38c0249bf7f1204a6f8063ce6e7c7cd14f8fa3168161fa12b` | 10 |
+| 2034 | `8dbab58f1429422862370c18b67344d009803fe543f845d3155373f54562c622` | 11 |
+| 2035 | `b504403f30a709570bdcefdd33b09a33e587f28de4cf1d2cebc222e7a5fd2802` | 9 |
