@@ -32,15 +32,19 @@ def fold(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
-def name_tokens(full_name: str) -> list[str]:
+def name_tokens(full_name: str, surnames: bool = True) -> list[str]:
+    """The full name, plus the later parts of it when `surnames` (a player is named by surname). A club is not:
+    "Wanderers" or "Town" is shared by several clubs, so a club counts only by its full name, city or code."""
     parts = [p for p in re.split(r"[\s\-]+", full_name) if len(p) >= 3]
-    return [fold(full_name)] + [fold(p) for p in parts[1:]] if len(parts) > 1 else [fold(full_name)]
+    if not surnames or len(parts) <= 1:
+        return [fold(full_name)]
+    return [fold(full_name)] + [fold(p) for p in parts[1:]]
 
 
-def mentions_subject(text: str, names: list[str]) -> bool:
+def mentions_subject(text: str, names: list[str], surnames: bool = True) -> bool:
     t = fold(text)
     for n in names:
-        for tok in name_tokens(n):
+        for tok in name_tokens(n, surnames):
             if re.search(rf"(?<![a-z]){re.escape(tok)}(?![a-z])", t):
                 return True
     return False
@@ -51,8 +55,8 @@ def mentions_kind(text: str, kind: str) -> bool:
     return any(w in t for w in KIND_WORDS.get(kind, ()))
 
 
-def surfaces(text: str, kind: str, subject_names: list[str]) -> bool:
-    return mentions_subject(text, subject_names) and mentions_kind(text, kind)
+def surfaces(text: str, kind: str, subject_names: list[str], surnames: bool = True) -> bool:
+    return mentions_subject(text, subject_names, surnames) and mentions_kind(text, kind)
 
 
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(%|km/h|km)?")

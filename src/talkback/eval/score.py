@@ -10,17 +10,20 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from talkback.clearance.lexicon import detect_strength
-from talkback.eval.detect import mentions_subject, numbers, surfaces
+from talkback.eval.detect import mentions_kind, mentions_subject, numbers
 from talkback.gallery.bus import FileSource
 from talkback.gallery.runner import _Frame
 from talkback.gallery.world import World
 from talkback.models.xt import load_xt_grid
 from talkback.schemas.models import Event, EventType
-from talkback.stats.desk import StatsDesk
+from talkback.stats.desk import EVENT_METRICS, StatsDesk
 from talkback.world.key import AnswerKey
 
 THIN_WINDOW_MS = 8 * 60_000
 SPOILER_DELAY_MS = 2 * 60_000
+CHECKPOINT_MS = 30_000          # the reference samples every fact this often
+LOOKBACK_MS = 10 * 60_000       # how long before it aired a line may have been cleared
+FACT_VALUES_VERSION = 2         # bump when the reference changes, so a cached one is rebuilt
 SYSTEMS = ("talkback", "talkback_without_clearance", "baseline")
 
 
@@ -47,6 +50,10 @@ class Context:
         events = [Event.model_validate_json(l) for l in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
         key = AnswerKey.model_validate_json((run_dir / "key.sealed.json").read_text(encoding="utf-8"))
         return cls(World.load(run_dir / "world.json"), key, events, run_dir)
+
+    def mentions(self, text: str, subject: str) -> bool:
+        """`subject` (a player, club or manager id) is named in `text`; only players count by surname alone."""
+        return mentions_subject(text, self.name_of(subject), surnames="-P" in subject)
 
     def name_of(self, subject: str) -> list[str]:
         w = self.world
@@ -87,7 +94,9 @@ def _fact_values(ctx: Context) -> dict[str, list[tuple[int, list[float]]]]:
     whole matchday's tracking, so it is kept next to the run."""
     cache = ctx.run_dir / "eval-fact-values.json" if ctx.run_dir is not None else None
     if cache is not None and cache.exists():
-        return {fid: [(t, vals) for t, vals in series] for fid, series in json.loads(cache.read_text()).items()}
+        stored = json.loads(cache.read_text())
+        if stored.get("version") == FACT_VALUES_VERSION:
+            return {fid: [(t, vals) for t, vals in series] for fid, series in stored["facts"].items()}
     w = ctx.world
     xt = load_xt_grid()
     out: dict[str, list[tuple[int, list[float]]]] = defaultdict(list)
@@ -100,7 +109,7 @@ def _fact_values(ctx: Context) -> dict[str, list[tuple[int, list[float]]]]:
         evs = by_match[fid]
         frames = source.tracking(fid) if source is not None else None
         i = j = 0
-        for t in range(0, 100 * 60_000 + 1, 5 * 60_000):
+        for t in range(0, 100 * 60_000 + 1, CHECKPOINT_MS):
             while i < len(evs) and evs[i].t <= t:
                 desk.ingest(evs[i])
                 i += 1
@@ -112,12 +121,14 @@ def _fact_values(ctx: Context) -> dict[str, list[tuple[int, list[float]]]]:
                                          frames["pos"][j][keep].astype(float), frames["speed"][j][keep].astype(float)))
                 j += 1
             vals = set()
-            for f in desk.facts(t):
+            # every player's latest shot and pass, not only the match's: a line may cite any of them
+            event_facts = [desk.fact(m, p) for p in desk.players() for m in EVENT_METRICS]
+            for f in [*desk.facts(t), *(x for x in event_facts if x is not None and x.sample_size)]:
                 vals.add(round(f.value, 2))
                 vals.add(round(f.value * 100, 1))
             out[fid].append((t, sorted(vals)))
     if cache is not None:
-        cache.write_text(json.dumps(out), encoding="utf-8")
+        cache.write_text(json.dumps({"version": FACT_VALUES_VERSION, "facts": out}), encoding="utf-8")
     return out
 
 
@@ -151,9 +162,8 @@ def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tu
         must = [i for i in ctx.key.items if i.must]
         hit, late, missed = [], [], []
         for it in must:
-            names = [n for s in it.subjects for n in ctx.name_of(s)]
             cands = [l for l in uk if l.match_id in fixture_of_story[it.storyline_id]
-                     and surfaces(l.text, it.kind, names)]
+                     and any(ctx.mentions(l.text, s) for s in it.subjects) and mentions_kind(l.text, it.kind)]
             if it.deadline == "live":
                 lo, hi = it.window_ms
                 if any(l.kind == "live" and lo <= l.sim_t <= hi for l in cands):
@@ -167,7 +177,9 @@ def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tu
         n_numbers = n_bad = 0
         for l in uk:
             series = known.get(l.match_id, [])
-            vals = next((v for t, v in reversed(series) if t <= l.sim_t + 5 * 60_000), series[-1][1] if series else set())
+            # a line cites a value from when its moment was cleared, up to a few minutes before it aired
+            vals = set().union(*(v for t, v in series if l.sim_t - LOOKBACK_MS <= t <= l.sim_t + 60_000)) or (
+                series[-1][1] if series else set())
             for value, unit in numbers(l.text):
                 n_numbers += 1
                 if not _verifiable(value, unit, vals):
@@ -175,8 +187,7 @@ def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tu
         over = [l for l in uk if l.kind == "live" and l.sim_t <= THIN_WINDOW_MS and detect_strength(l.text, "en")[0] >= 2]
         intrusion = 0
         for t in trivia:
-            names = ctx.name_of(t["subject"])
-            intrusion += sum(1 for l in uk if mentions_subject(l.text, names) and str(int(t["value"])) in l.text)
+            intrusion += sum(1 for l in uk if ctx.mentions(l.text, t["subject"]) and str(int(t["value"])) in l.text)
         spoilers = 0
         mena = [l for l in ls if l.territory in ("mena", "all")]
         for l in mena:
@@ -186,7 +197,7 @@ def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tu
                 if fid == l.match_id:
                     continue
                 recent = any(l.sim_t - SPOILER_DELAY_MS <= g <= l.sim_t for g in goals[fid])
-                if recent and any(mentions_subject(t, ctx.name_of(h)) or mentions_subject(t, ctx.name_of(a))
+                if recent and any(ctx.mentions(t, h) or ctx.mentions(t, a)
                                   for t in texts):
                     spoilers += 1
         results[system] = {

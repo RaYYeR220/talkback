@@ -103,3 +103,46 @@ def test_tracking_facts_are_numbers_the_gallery_could_cite(ctx, run_dir):
     name = ctx.name_of(speed.subject)[0]
     line = Line(system="s", match_id=fid, sim_t=20 * 60_000, text=f"{name}: top speed {speed.value:.1f} km/h")
     assert score(ctx, [line])["s"]["unverifiable_numbers"] == 0
+
+
+def test_a_club_is_not_named_by_a_shared_word():
+    from talkback.eval.detect import mentions_subject
+
+    rival = ["Kestrel Bay Wanderers", "KBW", "Kestrel Bay"]
+    assert not mentions_subject("Halverton Wanderers lead early", rival, surnames=False)
+    assert mentions_subject("Kestrel Bay have scored", rival, surnames=False)
+    assert mentions_subject("Mensah scores again", ["Kofi Mensah"])  # a player's surname still counts
+
+
+@pytest.mark.slow
+def test_mena_line_about_its_own_match_is_not_a_spoiler(ctx):
+    by_word = {}
+    for fid, h, a in ctx.world.fixtures:
+        for c in (h, a):
+            by_word.setdefault(ctx.world.club(c).name.split()[-1], []).append((fid, c))
+    pairs = [v for v in by_word.values() if len({f for f, _ in v}) > 1]
+    if not pairs:
+        pytest.skip("no two fixtures share a club-name word in this league")
+    (fa, ca), (fb, _) = pairs[0][0], next(x for x in pairs[0] if x[0] != pairs[0][0][0])
+    goal = next(e.t for e in ctx.events if e.match_id == fb and e.type.value == "goal")
+    own = ctx.world.club(ca).name
+    line = Line(system="s", match_id=fa, sim_t=goal + 30_000, text=f"{own} keep the ball.", territory="mena")
+    assert score(ctx, [line])["s"]["mena_spoilers"] == 0
+
+
+@pytest.mark.slow
+def test_an_earlier_shots_speed_is_a_number_the_gallery_could_cite(ctx, run_dir):
+    from talkback.models.xt import load_xt_grid
+    from talkback.stats.desk import StatsDesk
+
+    fid, h, a = ctx.world.fixtures[0]
+    shots = [e for e in ctx.events if e.match_id == fid and e.type.value == "shot" and e.player_id]
+    first, later = next((s, t) for s, t in zip(shots, shots[1:]) if t.t // 300_000 == s.t // 300_000)
+    desk = StatsDesk(fid, ctx.world.club(h), ctx.world.club(a), load_xt_grid())
+    for e in ctx.events:
+        if e.match_id == fid and e.t <= first.t:
+            desk.ingest(e)
+    speed = desk.fact("event.shot_speed_kmh", first.player_id)
+    name = ctx.name_of(first.player_id)[0]
+    line = Line(system="s", match_id=fid, sim_t=later.t + 1_000, text=f"{name} hit it at {speed.value:.1f} km/h")
+    assert score(ctx, [line])["s"]["unverifiable_numbers"] == 0
