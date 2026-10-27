@@ -132,7 +132,8 @@ class EventHubsSource:
         from azure.identity.aio import DefaultAzureCredential
 
         cred = DefaultAzureCredential()
-        client = EventHubConsumerClient(self.fqdn, self.group, self.hub, credential=cred)
+        client = EventHubConsumerClient(fully_qualified_namespace=self.fqdn, eventhub_name=self.hub,
+                                        consumer_group=self.group, credential=cred)
         queue: asyncio.Queue = asyncio.Queue()
 
         async def on_event(partition_context, event):

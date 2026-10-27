@@ -206,3 +206,28 @@ def test_mena_embargo_is_checked_again_at_air(run_dir, monkeypatch):
     v = aired_in_mena(5_000)  # the rival scored 5 s before the line aired: inside the two-minute delay
     assert v.verdict is Verdict.KILLED and any(r.startswith("embargo") for r in v.reasons)
     assert aired_in_mena(9_000_000).verdict is Verdict.ON_AIR  # a goal after air time had not happened yet
+
+
+def test_event_hubs_consumer_names_hub_and_group_correctly(monkeypatch):
+    import azure.eventhub.aio as eh
+
+    from talkback.gallery.bus import EventHubsSource
+
+    seen = {}
+
+    class Client:
+        def __init__(self, *args, **kwargs):
+            seen.update(args=args, kwargs=kwargs)
+            raise RuntimeError("stop here")
+
+    monkeypatch.setattr(eh, "EventHubConsumerClient", Client)
+    monkeypatch.setenv("EVENTHUB_FQDN", "ns.servicebus.windows.net")
+    monkeypatch.setenv("EVENTHUB_NAME", "matchday")
+
+    async def go():
+        with pytest.raises(RuntimeError):
+            async for _ in EventHubsSource("r").items():
+                pass
+
+    asyncio.run(go())
+    assert seen["kwargs"].get("eventhub_name") == "matchday" and seen["kwargs"].get("consumer_group") == "$Default"
