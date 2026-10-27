@@ -19,7 +19,7 @@ out/
 .azure/
 
 # Local scratch
-docs/*-backup*
+*-backup*
 *.bundle
 
 # Design scratch
