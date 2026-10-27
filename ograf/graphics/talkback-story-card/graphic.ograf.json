@@ -1,0 +1,101 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-story-card",
+  "version": "1.0.0",
+  "name": "Talkback Story Card",
+  "description": "A season storyline surfacing on air: kind badge, title and one line.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "label": "Kind",
+        "gddType": "single-line",
+        "order": 1,
+        "description": "Badge, e.g. MILESTONE, FAREWELL, DEBUT.",
+        "default": "MILESTONE"
+      },
+      "title": {
+        "type": "string",
+        "label": "Title",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "One away from 100"
+      },
+      "line": {
+        "type": "string",
+        "label": "Line",
+        "gddType": "multi-line",
+        "order": 3,
+        "default": "Okafor needs one more for his hundredth career goal."
+      },
+      "context": {
+        "type": "string",
+        "label": "Context",
+        "gddType": "single-line",
+        "order": 4,
+        "default": "Calder Vale v Ashcombe Rovers · 63′"
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

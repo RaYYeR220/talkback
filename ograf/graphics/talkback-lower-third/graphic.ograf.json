@@ -1,0 +1,100 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-lower-third",
+  "version": "1.0.0",
+  "name": "Talkback Lower Third",
+  "description": "Name and one line, with an optional kicker.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "kicker": {
+        "type": "string",
+        "label": "Kicker",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "Calder Vale"
+      },
+      "name": {
+        "type": "string",
+        "label": "Name",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "Tomas Okafor"
+      },
+      "line": {
+        "type": "string",
+        "label": "Line",
+        "gddType": "multi-line",
+        "order": 3,
+        "default": "Two goals in his last three starts"
+      },
+      "accentColor": {
+        "type": "string",
+        "label": "Accent colour",
+        "gddType": "color-rrggbb",
+        "order": 4,
+        "pattern": "^#[0-9a-f]{6}$"
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

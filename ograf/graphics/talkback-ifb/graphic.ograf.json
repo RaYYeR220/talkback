@@ -1,0 +1,125 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-ifb",
+  "version": "1.0.0",
+  "name": "Talkback IFB Strip",
+  "description": "Presenter cue strip: the line to say next and a countdown to its expiry. Presenter output only.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "cueId": {
+        "type": "string",
+        "label": "Cue id",
+        "gddType": "single-line",
+        "order": 0,
+        "default": "",
+        "hidden": true
+      },
+      "label": {
+        "type": "string",
+        "label": "Label",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "STORY"
+      },
+      "text": {
+        "type": "string",
+        "label": "Text",
+        "gddType": "multi-line",
+        "order": 2,
+        "default": "Okafor is one away from his hundredth career goal."
+      },
+      "context": {
+        "type": "string",
+        "label": "Context",
+        "gddType": "single-line",
+        "order": 3,
+        "default": "CAL 1–0 ASH · 63′"
+      },
+      "countdownMs": {
+        "type": "integer",
+        "label": "Countdown (ms)",
+        "order": 4,
+        "default": 20000,
+        "minimum": 0
+      },
+      "priority": {
+        "type": "string",
+        "label": "Priority",
+        "gddType": "select",
+        "enum": [
+          "normal",
+          "urgent"
+        ],
+        "gddOptions": {
+          "labels": {
+            "normal": "Normal",
+            "urgent": "Urgent"
+          }
+        },
+        "default": "normal",
+        "order": 5
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-player-tag",
+  "version": "1.0.0",
+  "name": "Talkback Player Tag",
+  "description": "Name tag anchored to a point on the picture, with optional speed and distance.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "label": "Name",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "Okafor"
+      },
+      "number": {
+        "type": "string",
+        "label": "Shirt number",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "9",
+        "maxLength": 3
+      },
+      "club": {
+        "type": "string",
+        "label": "Club",
+        "gddType": "single-line",
+        "order": 3,
+        "default": "CAL",
+        "maxLength": 4
+      },
+      "clubColor": {
+        "type": "string",
+        "label": "Club colour",
+        "gddType": "color-rrggbb",
+        "order": 4,
+        "pattern": "^#[0-9a-f]{6}$",
+        "default": "#7a1f2b"
+      },
+      "speed": {
+        "type": "number",
+        "label": "Speed",
+        "order": 5,
+        "description": "Negative hides it.",
+        "default": 31.4,
+        "minimum": -1
+      },
+      "speedUnit": {
+        "type": "string",
+        "label": "Speed unit",
+        "gddType": "single-line",
+        "order": 6,
+        "default": "km/h"
+      },
+      "distance": {
+        "type": "number",
+        "label": "Distance",
+        "order": 7,
+        "description": "Negative hides it.",
+        "default": 9.8,
+        "minimum": -1
+      },
+      "distanceUnit": {
+        "type": "string",
+        "label": "Distance unit",
+        "gddType": "single-line",
+        "order": 8,
+        "default": "km"
+      },
+      "x": {
+        "type": "number",
+        "label": "Anchor x",
+        "order": 9,
+        "description": "Fraction of the frame width.",
+        "default": 0.5,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "y": {
+        "type": "number",
+        "label": "Anchor y",
+        "order": 10,
+        "description": "Fraction of the frame height.",
+        "default": 0.6,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

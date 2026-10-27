@@ -1,0 +1,148 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-stat-card",
+  "version": "1.0.0",
+  "name": "Talkback Stat Card",
+  "description": "One headline stat with a comparison bar and a small evidence footer.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "subject": {
+        "type": "string",
+        "label": "Subject",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "Tomas Okafor · CAL"
+      },
+      "label": {
+        "type": "string",
+        "label": "Label",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "Pressures in the final third"
+      },
+      "value": {
+        "type": "string",
+        "label": "Value",
+        "gddType": "single-line",
+        "order": 3,
+        "description": "Pre-formatted value.",
+        "default": "14"
+      },
+      "unit": {
+        "type": "string",
+        "label": "Unit",
+        "gddType": "single-line",
+        "order": 4,
+        "default": ""
+      },
+      "ratio": {
+        "type": "number",
+        "label": "Bar",
+        "order": 5,
+        "description": "Value as a fraction of the bar.",
+        "default": 0.7,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "compareLabel": {
+        "type": "string",
+        "label": "Comparison label",
+        "gddType": "single-line",
+        "order": 6,
+        "default": "League average"
+      },
+      "compareValue": {
+        "type": "string",
+        "label": "Comparison value",
+        "gddType": "single-line",
+        "order": 7,
+        "default": "9"
+      },
+      "compareRatio": {
+        "type": "number",
+        "label": "Comparison marker",
+        "order": 8,
+        "description": "Marker position as a fraction of the bar; -1 hides it.",
+        "default": 0.45,
+        "minimum": -1,
+        "maximum": 1
+      },
+      "caption": {
+        "type": "string",
+        "label": "Caption",
+        "gddType": "multi-line",
+        "order": 9,
+        "default": "Most in the match so far"
+      },
+      "evidence": {
+        "type": "string",
+        "label": "Evidence",
+        "gddType": "single-line",
+        "order": 10,
+        "description": "Sample size and window the stat rests on.",
+        "default": "n=14 · 32′–41′"
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

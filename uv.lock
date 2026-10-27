@@ -1351,10 +1351,14 @@ dependencies = [
     { name = "agent-framework-orchestrations" },
     { name = "azure-ai-contentsafety" },
     { name = "azure-identity" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jsonschema" },
     { name = "mcp" },
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -1371,10 +1375,14 @@ requires-dist = [
     { name = "agent-framework-orchestrations", specifier = ">=1.4.0" },
     { name = "azure-ai-contentsafety", specifier = ">=1.0.0" },
     { name = "azure-identity", specifier = ">=1.27.0" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "jsonschema", specifier = ">=4.23" },
     { name = "mcp", specifier = ">=1.20" },
     { name = "numpy", specifier = ">=2.1" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "uvicorn", specifier = ">=0.32" },
 ]
 
 [package.metadata.requires-dev]
