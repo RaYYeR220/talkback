@@ -69,7 +69,8 @@ class SealResult(AgentMiddleware):
 
         async def sealed():
             answer = await inner.get_final_response()
-            yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": self._seal(answer.text, run)}])
+            text = self._seal(answer.text, run)
+            yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": text}])
 
         context.result = ResponseStream(sealed(), finalizer=AgentResponse.from_updates)
 
