@@ -23,7 +23,7 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from talkback.ograf.layout import OUTPUTS, PRESENTER, Layer, render_target
+from talkback.ograf.layout import OUTPUTS, PRESENTER, Layer, control_token, render_target
 from talkback.ograf.spec import GRAPHICS_DIR
 from talkback.schemas.models import ClaimKind, Cue, Fact, MatchState, Verdict
 
@@ -222,14 +222,19 @@ class OGrafError(Exception):
 
 
 class OGrafClient:
-    """Async client for the OGraf Server API v1. Works against any compliant server."""
+    """Async client for the OGraf Server API v1. Works against any compliant server.
 
-    def __init__(self, http: httpx.AsyncClient, prefix: str = "/ograf/v1"):
+    token: the bearer token for calls that change graphics; defaults to this process's own.
+    """
+
+    def __init__(self, http: httpx.AsyncClient, prefix: str = "/ograf/v1", token: str | None = None):
         self.http = http
         self.prefix = prefix.rstrip("/")
+        self.token = control_token() if token is None else token
 
     async def _call(self, method: str, path: str, body: Any = None, query: dict[str, str] | None = None) -> Any:
-        r = await self.http.request(method, f"{self.prefix}{path}", json=body, params=query)
+        r = await self.http.request(method, f"{self.prefix}{path}", json=body, params=query,
+                                    headers={"Authorization": f"Bearer {self.token}"})
         try:
             data = r.json()
         except ValueError:

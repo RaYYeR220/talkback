@@ -1,7 +1,10 @@
-"""Outputs (one OGraf renderer each) and the layer plan shared by the server and the Graphics Op."""
+"""Outputs (one OGraf renderer each), the layer plan and the control token shared by the server and
+the Graphics Op."""
 
 from __future__ import annotations
 
+import os
+import secrets
 from enum import IntEnum
 
 OUTPUTS: dict[str, tuple[str, str]] = {
@@ -35,3 +38,16 @@ LAYERS: dict[Layer, tuple[str, str]] = {
 
 def render_target(layer: int) -> dict[str, int]:
     return {"layer": int(layer)}
+
+
+TOKEN_ENV = "TALKBACK_OGRAF_TOKEN"
+_TOKEN: str | None = None
+
+
+def control_token() -> str:
+    """The bearer token for Server API calls that change graphics: TALKBACK_OGRAF_TOKEN, or else one
+    made once per process, which the in-process Graphics Op uses too."""
+    global _TOKEN
+    if _TOKEN is None:
+        _TOKEN = os.environ.get(TOKEN_ENV) or secrets.token_urlsafe(32)
+    return _TOKEN
