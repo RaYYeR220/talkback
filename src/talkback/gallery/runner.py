@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+
+import numpy as np
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -101,7 +103,9 @@ class MatchdayRunner:
             desk = StatsDesk(fid, self.world.club(h), self.world.club(a), xt)
             self.matches[fid] = MatchDesk(fid, h, a, desk, StoryBoard(self.world, fid), Triggers(desk))
         self.events_by_id: dict[str, Event] = {}
-        self.lab = LabBackend(SnapshotStore(self.run_dir / "snapshots"), self.world, self.events_by_id.get,
+        from talkback.hosted.runstore import snapshot_store
+
+        self.lab = LabBackend(snapshot_store(self.run_dir, run_id), self.world, self.events_by_id.get,
                               pool=lab_pool, n=lab_n, horizon_s=15)
         self.desks = [TerritoryDesk(t, client_for("fast")) for t in TERRITORIES]
         self.spotter = Spotter(_spotter_agent(client_for("fast")))
@@ -433,6 +437,43 @@ class MatchdayRunner:
             self.bc.publish("rundown", self.sim_t, item.model_dump())
 
     # ----------------------------------------------------------------- loop
+    async def run_feed(self, items) -> dict:
+        """Run from a live feed (Event Hubs): events and 2 Hz tracking arrive with their own pacing."""
+        self.live_frames: dict[str, dict] = {}
+        self.bc.publish("run", 0, {"id": self.run_id, "status": "started", "speed": self.speed, "source": "eventhubs",
+                                    "fixtures": [{"match_id": f, "home": h, "away": a, "home_name": self.names[h],
+                                                  "away_name": self.names[a]} for f, h, a in self.world.fixtures]})
+        loop = asyncio.get_running_loop()
+        last_house = 0.0
+        async for item in items:
+            kind = item.get("kind")
+            if kind == "end":
+                break
+            if kind == "event":
+                e = Event.model_validate(item["event"])
+                self._dispatch(e)
+                self.sim_t = max(self.sim_t, e.t)
+            elif kind == "frame":
+                m = self.matches.get(item["match_id"])
+                if m is not None:
+                    m.desk.ingest_frame(_Frame(item["t"], tuple(item["ids"]), np.asarray(item["pos"], float),
+                                               np.asarray(item["speed"], float)))
+                    self.live_frames[item["match_id"]] = item
+            if loop.time() - last_house > 0.2:
+                last_house = loop.time()
+                self._scan()
+                self._table()
+                await self._expire_holds()
+                self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
+                                record=False)
+        while self.tasks or self.holds or not self.queue.empty() or self._busy():
+            await self._expire_holds()
+            await asyncio.sleep(0.2)
+        for w in self.workers:
+            w.cancel()
+        self.bc.publish("run", self.sim_t, {"id": self.run_id, "status": "finished", "stats": self.stats})
+        return dict(self.stats)
+
     async def run(self, until_ms: int | None = None) -> dict:
         self.bc.publish("run", 0, {"id": self.run_id, "status": "started", "speed": self.speed,
                                     "fixtures": [{"match_id": f, "home": h, "away": a, "home_name": self.names[h],

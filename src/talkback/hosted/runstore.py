@@ -64,7 +64,7 @@ class BlobSnapshotStore(SnapshotStore):
         return super().times(match_id)
 
 
-def snapshot_store(root: Path) -> SnapshotStore:
+def snapshot_store(root: Path, run_id: str | None = None) -> SnapshotStore:
     if (root / "snapshots").exists() or not os.environ.get("STORAGE_ACCOUNT_URL"):
         return SnapshotStore(root / "snapshots")
-    return BlobSnapshotStore(root / "snapshots", os.environ.get("TALKBACK_RUN_ID", "md-2026"))
+    return BlobSnapshotStore(root / "snapshots", run_id or os.environ.get("TALKBACK_RUN_ID", "md-2026"))

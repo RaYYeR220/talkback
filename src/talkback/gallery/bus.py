@@ -99,3 +99,42 @@ class Broadcaster:
         if self._fh:
             self._fh.close()
             self._fh = None
+
+
+class EventHubsSource:
+    """The live feed: match events and tracking frames for one run from Event Hubs (all partitions)."""
+
+    def __init__(self, run_id: str):
+        import os
+
+        self.run_id = run_id
+        self.fqdn = os.environ["EVENTHUB_FQDN"]
+        self.hub = os.environ.get("EVENTHUB_NAME", "matchday")
+        self.group = os.environ.get("EVENTHUB_CONSUMER_GROUP", "$Default")
+
+    async def items(self) -> AsyncIterator[dict]:
+        from azure.eventhub.aio import EventHubConsumerClient
+        from azure.identity.aio import DefaultAzureCredential
+
+        cred = DefaultAzureCredential()
+        client = EventHubConsumerClient(self.fqdn, self.group, self.hub, credential=cred)
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def on_event(partition_context, event):
+            if event is None:
+                return
+            body = json.loads(event.body_as_str())
+            if body.get("run_id") == self.run_id:
+                await queue.put(body)
+
+        task = asyncio.create_task(client.receive(on_event=on_event, starting_position="@latest"))
+        try:
+            while True:
+                item = await queue.get()
+                yield item
+                if item.get("kind") == "end":
+                    break
+        finally:
+            task.cancel()
+            await client.close()
+            await cred.close()

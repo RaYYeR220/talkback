@@ -117,18 +117,67 @@ class Gallery:
         self.bc.last.clear()
         record = self.run_dir / f"broadcast-{self.run_id}.jsonl"
         self.bc._fh = open(record, "a", encoding="utf-8", newline="\n")
-        clients = {"fast": make_client("fast"), "strong": make_client("strong")}
         self.pool = self.pool or ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1))
-        self.runner = MatchdayRunner(self.run_dir, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__,
-                                     self.bc, speed=speed, lab_pool=self.pool, run_id=self.run_id)
         if self.graphics is not None:
             self.graphics.speed = speed
+        self.live_speed = speed
+        from talkback.service.cloud import cloud_enabled
+
+        if not cloud_enabled():
+            clients = {"fast": make_client("fast"), "strong": make_client("strong")}
+            self.runner = MatchdayRunner(self.run_dir, Gate(load_packs(PACKS_DIR), make_safety()),
+                                         clients.__getitem__, self.bc, speed=speed, lab_pool=self.pool,
+                                         run_id=self.run_id)
         self.task = asyncio.create_task(self._live())
         return self.run_id
 
-    async def _live(self) -> None:
+    async def start_cloud(self, speed: float) -> str:
+        """Live run in Azure: generator job → Event Hubs → this service (no local run directory needed)."""
+        from talkback.clearance.gate import Gate
+        from talkback.clearance.packs import PACKS_DIR, load_packs
+        from talkback.gallery.bus import EventHubsSource
+        from talkback.gallery.llm import make_client
+        from talkback.gallery.runner import MatchdayRunner
+        from talkback.service.cloud import start_generator, wait_for_run
+        from talkback.service.safety import make_safety
+
+        seed = int(time.time()) % 100_000
+        run_id = f"md-{seed}-{int(time.time())}"
+        buffer: asyncio.Queue = asyncio.Queue()
+
+        async def pump() -> None:
+            async for item in EventHubsSource(run_id).items():
+                await buffer.put(item)
+
+        async def items():
+            while True:
+                item = await buffer.get()
+                yield item
+                if item.get("kind") == "end":
+                    return
+
+        pump_task = asyncio.create_task(pump())
+        await asyncio.sleep(2)  # let the consumer attach before the first event is published
+        await start_generator(run_id, seed, speed)
+        self.bc.publish("run", 0, {"id": run_id, "status": "generating", "mode": "live"}, record=False)
+        dest = await wait_for_run(run_id, Path(os.environ.get("TMPDIR", "/tmp")) / "talkback-live" / run_id)
+        clients = {"fast": make_client("fast"), "strong": make_client("strong")}
+        self.runner = MatchdayRunner(dest, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__, self.bc,
+                                     speed=speed, lab_pool=self.pool, run_id=run_id)
         try:
-            await self.runner.run()
+            await self.runner.run_feed(items())
+        finally:
+            pump_task.cancel()
+        return run_id
+
+    async def _live(self) -> None:
+        from talkback.service.cloud import cloud_enabled
+
+        try:
+            if cloud_enabled():
+                await self.start_cloud(getattr(self, "live_speed", LIVE_SPEED))
+            else:
+                await self.runner.run()
         finally:
             self.bc.close()
             self.mode = "idle"
@@ -194,6 +243,10 @@ async def stream() -> StreamingResponse:
 
 @app.get("/api/frames/{match_id}")
 def frame(match_id: str, t: int | None = None) -> dict:
+    live = getattr(gallery.runner, "live_frames", None)
+    if live and t is None and match_id in live:
+        item = live[match_id]
+        return {k: item[k] for k in ("match_id", "t", "ball", "ids", "pos")}
     at = gallery.sim_t if t is None else t
     f = gallery.source.frame_at(match_id, at)
     if f is None:

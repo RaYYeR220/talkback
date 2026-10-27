@@ -65,3 +65,23 @@ def test_runner_first_fifteen_minutes(run_dir, monkeypatch):
     boards = [m["data"] for m in msgs if m["kind"] == "board"]
     surfaced = {s["id"] for b in boards for s in b["stories"] if s["status"] == "surfaced"}
     assert surfaced, "at least one storyline reached air"
+
+
+@pytest.mark.slow
+def test_runner_from_a_live_feed(run_dir, monkeypatch):
+    """The Event Hubs path: the same feed items the generator publishes drive the gallery."""
+    from talkback.service.generator import feed_items
+
+    monkeypatch.setenv("TALKBACK_ENV", "dev")
+    items = [p for t, _, p in feed_items(Path(run_dir)) if t <= 6 * 60_000] + [{"kind": "end"}]
+
+    async def feed():
+        for it in items:
+            yield it
+
+    client = ScriptedClient(script)
+    bc = Broadcaster()
+    runner = MatchdayRunner(run_dir, Gate(load_packs(PACKS_DIR), LocalDevSafety()), lambda tier: client, bc, lab_n=8)
+    stats = asyncio.run(runner.run_feed(feed()))
+    assert stats["workflows"] >= 5 and stats["cues"] > 0
+    assert runner.live_frames and all(len(f["ids"]) >= 20 for f in runner.live_frames.values())
