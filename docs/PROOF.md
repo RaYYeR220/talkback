@@ -5,11 +5,31 @@ What we measured, how, and where to check it. Every claim and its evidence type 
 
 ## 1. The evaluation of record
 
-Pre-registered in [preregistration.md](preregistration.md) before any run of record: five matchdays (seeds
-2026–2030), the SHA-256 of each sealed answer key, the three systems and the metrics. `talkback eval` refuses to
-score a run whose key does not match its sealed hash.
+Pre-registered in [preregistration.md](preregistration.md): the systems, the metrics and, for every matchday, the
+SHA-256 of its sealed answer key, published before the matchday was played. The record is five held-out matchdays
+(seeds 2031–2035) played by a build fixed before they were generated; the five development matchdays (2026–2030)
+are the ones the gallery was tuned on. `talkback eval` refuses to score a run whose key does not match its sealed
+hash.
 
 <!-- EVAL-RESULTS -->
+**Evaluation of record (held-out seeds 2031–2035):** running; the table lands here when it is scored.
+<!-- EVAL-RESULTS -->
+
+### Development set (seeds 2026–2030)
+
+The gallery was tuned while these matchdays were scored (see the amendments in the pre-registration), so they show the direction, not the record.
+
+5 matchdays, 10 matches each; sealed keys `768c07185cbe…`, `aaf8ca691d11…`, `97369af9f813…`, `de6a811161f9…`, `d0ba8defaee8…`
+
+| | Talkback | Single model | Clearance off |
+|---|---|---|---|
+| Story Recall (must-surface storylines on air in time) | **48%** (23/48) | **25%** (12/48) | **81%** (39/48) |
+| …surfaced late / missed | 1 / 24 | 11 / 25 | 2 / 7 |
+| Unverifiable numbers on air | 1.1% (6/547) | 0.0% (0/1949) | 7.7% (151/1953) |
+| Over-claims in the first 8 minutes | 0 | 0 | 9 |
+| Spoilers inside MENA's two-minute delay | 0 | 47 | 50 |
+| Trivia that reached air | 3 | 2 | 9 |
+| Lines on air (English) | 593 | 1168 | 1680 |
 
 **How it ran.** Every system used the same Microsoft Foundry deployments: `gpt-5-mini` (2025-08-07, reasoning effort
 low) for the Archivist, the Lab and the full-time Recap; `gpt-4.1-mini` (2025-04-14) for the Spotter, the Writer,
@@ -21,7 +41,7 @@ in the gallery's process on the same models; the deployed gallery calls them as 
 Reproduce:
 
 ```bash
-uv run talkback eval-all --seeds 2026 2027 2028 2029 2030 --speed 6 --web web/public/eval/summary.json
+uv run talkback eval-all --seeds 2031 2032 2033 2034 2035 --speed 6 --web web/public/eval/summary.json
 ```
 
 ## 2. The simulator is a credible world

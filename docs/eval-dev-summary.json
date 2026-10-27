@@ -1,0 +1,81 @@
+{
+ "systems": {
+  "talkback": {
+   "lines": 593,
+   "stories_hit": 23,
+   "stories_late": 1,
+   "stories_missed": 24,
+   "must": 48,
+   "numbers": 547,
+   "unverifiable_numbers": 6,
+   "overclaims_in_thin_windows": 0,
+   "trivia_intrusions": 3,
+   "mena_spoilers": 0,
+   "story_recall": 0.479,
+   "unverifiable_rate": 0.011,
+   "matchdays": 5
+  },
+  "talkback_without_clearance": {
+   "lines": 1680,
+   "stories_hit": 39,
+   "stories_late": 2,
+   "stories_missed": 7,
+   "must": 48,
+   "numbers": 1953,
+   "unverifiable_numbers": 151,
+   "overclaims_in_thin_windows": 9,
+   "trivia_intrusions": 9,
+   "mena_spoilers": 50,
+   "story_recall": 0.812,
+   "unverifiable_rate": 0.077,
+   "matchdays": 5
+  },
+  "baseline": {
+   "lines": 1168,
+   "stories_hit": 12,
+   "stories_late": 11,
+   "stories_missed": 25,
+   "must": 48,
+   "numbers": 1949,
+   "unverifiable_numbers": 0,
+   "overclaims_in_thin_windows": 0,
+   "trivia_intrusions": 2,
+   "mena_spoilers": 47,
+   "story_recall": 0.25,
+   "unverifiable_rate": 0.0,
+   "matchdays": 5
+  }
+ },
+ "matchdays": [
+  {
+   "run": "runs\\md-2026",
+   "broadcast": "runs\\md-2026\\broadcast-eval.jsonl",
+   "key_sha256": "768c07185cbe1455d16eb508a95261174e266c04ad3f3ab8d12933f22083c37a",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2027",
+   "broadcast": "runs\\md-2027\\broadcast-eval.jsonl",
+   "key_sha256": "aaf8ca691d11d495476c31c479116b536c234ecf6d4576c9eb9ccd80ad325117",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2028",
+   "broadcast": "runs\\md-2028\\broadcast-eval.jsonl",
+   "key_sha256": "97369af9f813c6f5be5bb12000304b5cd5352fb0760fe2f795dbe2af2a54569c",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2029",
+   "broadcast": "runs\\md-2029\\broadcast-eval.jsonl",
+   "key_sha256": "de6a811161f9756ee6a8304f5e524aa9e34500dce0646b25d86040e824451809",
+   "until_min": null
+  },
+  {
+   "run": "runs\\md-2030",
+   "broadcast": "runs\\md-2030\\broadcast-eval.jsonl",
+   "key_sha256": "d0ba8defaee8e77ac45f39bc8782b288760c5d9318103ed42eb69f305e703246",
+   "until_min": null
+  }
+ ]
+}
