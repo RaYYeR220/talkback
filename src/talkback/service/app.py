@@ -31,6 +31,8 @@ REPLAY_FILE = os.environ.get("TALKBACK_REPLAY", "broadcast-replay.jsonl")
 LIVE_PER_DAY = int(os.environ.get("TALKBACK_LIVE_PER_DAY", "12"))
 LIVE_SPEED = float(os.environ.get("TALKBACK_LIVE_SPEED", "10"))
 REPLAY_SPEED = float(os.environ.get("TALKBACK_REPLAY_SPEED", "10"))
+# How long the finished replay stays on screen before it starts again.
+REPLAY_HOLD_S = float(os.environ.get("TALKBACK_REPLAY_HOLD_S", "90"))
 
 
 class StartRequest(BaseModel):
@@ -93,7 +95,7 @@ class Gallery:
                     data.update({"mode": "replay", "recorded": msg.get("wall")})
                 self._remember({**msg, "data": data})
                 self.bc.publish(msg["kind"], msg["sim_t"], data, record=False)
-            await asyncio.sleep(5)
+            await asyncio.sleep(REPLAY_HOLD_S)
 
     # ------------------------------------------------------------------ live
     async def start_live(self, speed: float) -> str:
