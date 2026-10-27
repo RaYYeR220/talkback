@@ -16,6 +16,8 @@ from talkback.clearance.checks import (
 from talkback.clearance.lexicon import base_lang
 from talkback.clearance.packs import ClearancePack, PackContext, apply_pack
 from talkback.clearance.safety import ContentSafety
+from talkback.clearance.sensitive import LANGS as SENSITIVE_LANGS
+from talkback.clearance.sensitive import sensitive_topics
 from talkback.schemas.models import Cue, TerritoryVerdict, Verdict
 
 Localized = dict[str, tuple[str, str]]
@@ -84,6 +86,13 @@ class Gate:
             if recheck:
                 verdict = Verdict.KILLED
                 reasons += recheck
+            if text != cue.text and base_lang(lang) in SENSITIVE_LANGS:
+                # a translation can name what the source only hinted at
+                added = [r for r in (f"sensitive: {t}" for t in sorted(sensitive_topics(text, lang)))
+                         if r not in reasons]
+                if added:
+                    verdict = worst(verdict, Verdict.HOLD_FOR_PRODUCER)
+                    reasons += added
             ok, note = await asyncio.wait_for(self.safety.analyze(text), self.safety_timeout_s)
             if not ok:
                 verdict = Verdict.KILLED

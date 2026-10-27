@@ -261,3 +261,21 @@ def test_gate_fails_closed_on_bad_context(packs, safety):
     c = cue("Ashford have 1.4 xG", [XG_CLAIM])
     verdicts, out = run(gate, c, {"mena": ("أشفورد لديه ١٫٤ من الأهداف المتوقعة", "ar")}, broken)
     assert verdicts == {"mena": KILL} and out.verdicts["mena"].reasons == ["error: KeyError"]
+
+
+def test_embargo_reads_the_source_when_the_translation_transliterates(packs, safety):
+    gate = Gate({t: packs[t] for t in ("uk", "mena")}, safety)
+    c = cue("Calder Vale lead 2-1 at Ashcombe Rovers", SCORE_CLAIMS)
+    # a spelling the alias list does not know
+    localized = {"uk": (c.text, "en"), "mena": ("كولدر ڤيل يتقدم 2-1", "ar")}
+    verdicts, out = run(gate, c, localized, pack_ctx(goal_ago_ms=60_000))
+    assert verdicts == {"uk": ON, "mena": KILL}
+    assert out.verdicts["mena"].reasons[0].startswith("embargo:")
+
+
+def test_sensitive_topic_added_by_the_translation_is_held(packs, safety):
+    gate = Gate({t: packs[t] for t in ("uk", "br")}, safety)
+    c = cue("Mensah is back on his feet")
+    verdicts, out = run(gate, c, {"uk": (c.text, "en"), "br": ("Mensah sente dores e volta", "pt")})
+    assert verdicts == {"uk": ON, "br": HOLD}
+    assert "sensitive: injury" in out.verdicts["br"].reasons

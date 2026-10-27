@@ -107,7 +107,9 @@ class KillTopics(_Rule):
 
 class ResultsEmbargo(_Rule):
     """Kills mentions of another fixture (club names, or a score pointed 'elsewhere')
-    while that fixture has a goal inside the territory's delay window."""
+    while that fixture has a goal inside the territory's delay window. Club names are
+    also looked up in the source line, so a transliteration in the territory's script
+    cannot slip past the alias list."""
 
     type: Literal["results_embargo"]
     delay_minutes: int = Field(gt=0)
@@ -123,6 +125,8 @@ class ResultsEmbargo(_Rule):
             ids = (*ctx.other_fixtures[fid], *ctx.fixture_clubs.get(fid, []))
             names = [n for c in dict.fromkeys(ids) if c not in own for n in ctx.club_names[c]]
             hits = match_terms(text, names, lang)
+            if not hits and cue.text != text:
+                hits = match_terms(cue.text, names, cue.lang)
             if hits:
                 reasons.append(f"{self.id}: '{hits[0]}' has a result inside the "
                                f"{self.delay_minutes}-min delay")
