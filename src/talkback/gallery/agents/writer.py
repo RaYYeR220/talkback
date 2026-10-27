@@ -14,7 +14,17 @@ from talkback.schemas.models import Claim, ClaimKind, Cue, Fact, Storyline
 
 Audience = Literal["analyst", "casual", "presenter"]
 TEMPLATES = ("stat_card", "story_card", "lower_third", "counterfactual_card", "table_swing", "player_tag")
-MAX_AGE_MS = {"analyst": 45_000, "casual": 45_000, "presenter": 20_000}
+MAX_AGE_MS = {"analyst": 120_000, "casual": 120_000, "presenter": 60_000}
+# how long a line about this kind of moment stays worth saying (match ms)
+MOMENT_MAX_AGE_MS = {"storyline": 600_000, "goal": 90_000, "red_card": 90_000, "big_chance": 60_000,
+                     "big_save": 60_000, "pressing_surge": 180_000, "momentum_swing": 180_000}
+
+
+def max_age(moment_kind: str, audience: str, pre_match: bool = False) -> int:
+    base = MOMENT_MAX_AGE_MS.get(moment_kind, MAX_AGE_MS.get(audience, 120_000))
+    if moment_kind == "storyline" and not pre_match:
+        base = 180_000
+    return min(base, MAX_AGE_MS["presenter"]) if audience == "presenter" and moment_kind != "storyline" else base
 
 INSTRUCTIONS = (
     "You are the Writer in a football production gallery. Draft up to three short lines about the moment: "
@@ -139,5 +149,7 @@ async def draft_cues(agent: Agent, moment: Moment, facts: list[Fact], lab: LabRe
             id=f"Q-{moment.id}-{d.audience}-{n}", match_id=moment.match_id, moment_id=moment.id,
             audience=d.audience, text=d.text.strip(), lang="en",
             claims=_normalise(d.claims, stories), template=template, data=d.data,
-            valid_state_hash=state_hash, max_age_ms=MAX_AGE_MS[d.audience], created_t=now_t))
+            valid_state_hash=state_hash,
+            max_age_ms=max_age(moment.kind, d.audience, pre_match=moment.detail.get("pre_match") == 1),
+            created_t=now_t))
     return cues

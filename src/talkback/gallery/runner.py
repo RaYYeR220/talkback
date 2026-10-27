@@ -109,6 +109,10 @@ class MatchdayRunner:
         self.moments: list[Moment] = []
         self.holds: dict[str, tuple[MomentRun, float]] = {}
         self.sem = asyncio.Semaphore(max_concurrent)
+        self.queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
+        self.max_concurrent = max_concurrent
+        self.workers: list[asyncio.Task] = []
+        self._seq = 0
         self.tasks: set[asyncio.Task] = set()
         self.sim_t = 0
         self.last_table = -TABLE_EVERY_MS
@@ -152,8 +156,8 @@ class MatchdayRunner:
         elif e.type == EventType.period_start:
             m.period = e.period
             if e.period == 1:
-                for s in m.board.kickoff():
-                    self._story_moment(m, s.id, s.kind, e.t + 60_000 + 15_000 * len(self.moments) % 300_000)
+                for n, s in enumerate(m.board.kickoff()):
+                    self._story_moment(m, s.id, s.kind, e.t + 60_000 + 20_000 * n, pre_match=True)
         elif e.type == EventType.period_end and e.period == 2:
             m.finished = True
             self._spawn(self._recap(m))
@@ -167,12 +171,12 @@ class MatchdayRunner:
         if e.type in (EventType.goal, EventType.card, EventType.period_start, EventType.period_end):
             self._publish_score(m)
 
-    def _story_moment(self, m: MatchDesk, story_id: str, kind: str, t: int) -> None:
+    def _story_moment(self, m: MatchDesk, story_id: str, kind: str, t: int, pre_match: bool = False) -> None:
         c = Candidate(id=f"C-{m.fixture_id}-story-{story_id}", match_id=m.fixture_id, t=t, kind="storyline",
                       subject=story_id, event_ids=[], detail={"story_kind": kind})
         moment = Moment(id=c.id.replace("C-", "M-", 1), match_id=m.fixture_id, t=t, kind="storyline",
-                        subject=story_id, salience=0.75, rationale=f"story board: {kind}", event_ids=[],
-                        detail={"story_kind": kind}, ranked_by="rules")
+                        subject=story_id, salience=0.6 if pre_match else 0.8, rationale=f"story board: {kind}",
+                        event_ids=[], detail={"story_kind": kind, "pre_match": int(pre_match)}, ranked_by="rules")
         self._enqueue(moment)
 
     def _publish_score(self, m: MatchDesk) -> None:
@@ -223,8 +227,23 @@ class MatchdayRunner:
                 self._enqueue(moment)
 
     def _enqueue(self, moment: Moment) -> None:
+        """Moments wait in salience order: a goal never queues behind pre-match stories."""
         self.moments.append(moment)
-        self._spawn(self._workflow(moment))
+        self._seq += 1
+        self.queue.put_nowait((-moment.salience, moment.t, self._seq, moment))
+        if not self.workers:
+            self.workers = [asyncio.create_task(self._worker()) for _ in range(self.max_concurrent)]
+
+    async def _worker(self) -> None:
+        while True:
+            *_, moment = await self.queue.get()
+            try:
+                await self._workflow(moment)
+            finally:
+                self.queue.task_done()
+
+    def _busy(self) -> bool:
+        return self.queue._unfinished_tasks > 0  # noqa: SLF001
 
     def _anchor(self, moment: Moment) -> str | None:
         for eid in moment.event_ids:
@@ -240,24 +259,23 @@ class MatchdayRunner:
         return None
 
     async def _workflow(self, moment: Moment) -> None:
-        async with self.sem:
-            m = self.matches[moment.match_id]
-            state = m.state()
-            job = MomentJob(moment=moment, facts=evidence_facts(m.desk, moment, m.t), names=self.names,
-                            state=state, now_t=m.t, anchor_event_id=self._anchor(moment))
-            self.stats["workflows"] += 1
-            self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id,
-                                            "stage": "started", "kind": moment.kind})
-            t0 = time.perf_counter()
-            try:
-                run = await run_moment(self.deps, job)
-            except Exception as exc:  # noqa: BLE001 - one bad moment never stops the gallery
-                self.bc.publish("agent", m.t, {"moment_id": moment.id, "stage": "error", "error": type(exc).__name__})
-                return
-            self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id, "stage": "done",
-                                            "ms": int((time.perf_counter() - t0) * 1000),
-                                            "trace": [e for _, e in run.trace if _ == "executor_completed"]})
-            await self._after_run(run)
+        m = self.matches[moment.match_id]
+        state = m.state()
+        job = MomentJob(moment=moment, facts=evidence_facts(m.desk, moment, m.t), names=self.names,
+                        state=state, now_t=m.t, anchor_event_id=self._anchor(moment))
+        self.stats["workflows"] += 1
+        self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id,
+                                        "stage": "started", "kind": moment.kind})
+        t0 = time.perf_counter()
+        try:
+            run = await run_moment(self.deps, job)
+        except Exception as exc:  # noqa: BLE001 - one bad moment never stops the gallery
+            self.bc.publish("agent", m.t, {"moment_id": moment.id, "stage": "error", "error": type(exc).__name__})
+            return
+        self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id, "stage": "done",
+                                        "ms": int((time.perf_counter() - t0) * 1000),
+                                        "trace": [e for _, e in run.trace if _ == "executor_completed"]})
+        await self._after_run(run)
 
     async def _after_run(self, run: MomentRun) -> None:
         if run.hold is not None:
@@ -420,7 +438,7 @@ class MatchdayRunner:
         events = self.source.events()
         nxt = next(events, None)
         last_pub = -1
-        while nxt is not None or self.tasks or self.holds:
+        while nxt is not None or self.tasks or self.holds or not self.queue.empty() or self._busy():
             target = int((loop.time() - wall0) * self.speed * 1000)
             if until_ms is not None:
                 target = min(target, until_ms)
@@ -436,9 +454,11 @@ class MatchdayRunner:
                 last_pub = self.sim_t // 1000
                 self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
                                 record=False)
-            if until_ms is not None and target >= until_ms and not self.tasks:
+            if until_ms is not None and target >= until_ms and not self.tasks and self.queue.empty()                     and not self._busy():
                 break
             await asyncio.sleep(0.05)
+        for w in self.workers:
+            w.cancel()
         self.bc.publish("run", self.sim_t, {"id": self.run_id, "status": "finished", "stats": self.stats})
         return dict(self.stats)
 
