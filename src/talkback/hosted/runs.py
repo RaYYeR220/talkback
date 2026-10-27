@@ -9,6 +9,7 @@ or malformed line means the default run.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 import threading
@@ -23,6 +24,7 @@ _RUN_LINE = re.compile(r"^Run: (\S+)$", re.M)
 _current: ContextVar[str | None] = ContextVar("talkback_run", default=None)
 
 T = TypeVar("T")
+log = logging.getLogger(__name__)
 
 
 def default_run() -> str:
@@ -83,3 +85,14 @@ class RunCache(Generic[T]):
             while len(self._items) > self.size:
                 self._items.popitem(last=False)
         return value
+
+
+def prewarm(cache: RunCache, run_id: str) -> bool:
+    """Load a run at start-up if possible. On the first deploy the agent's identity has no storage access
+    yet, so a failure is logged and the run is loaded on the first request instead."""
+    try:
+        cache.get(run_id)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("could not preload run %s (%s: %s); loading it on first use", run_id, type(exc).__name__, exc)
+        return False

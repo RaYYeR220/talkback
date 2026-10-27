@@ -19,7 +19,7 @@ from pydantic import Field
 from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, finalize
 from talkback.gallery.llm import make_client
 from talkback.gallery.world import World
-from talkback.hosted.runs import RunCache, RunScope, current, default_run, run_of
+from talkback.hosted.runs import RunCache, RunScope, current, default_run, prewarm, run_of
 from talkback.hosted.runstore import run_dir, snapshot_store
 from talkback.schemas.models import Event
 from talkback.sim.rollout import is_supported
@@ -73,7 +73,7 @@ def load_backend(run_id: str) -> LabBackend:
 
 def build_agent() -> Agent:
     backends = RunCache(load_backend)
-    backends.get(default_run())  # fail at start-up, not on the first moment, if the default run is missing
+    prewarm(backends, default_run())
     return Agent(client=make_client("strong"), instructions=REMOTE_INSTRUCTIONS, name="lab",
                  description="Counterfactual experiments on match moments.", tools=remote_tools(backends),
                  middleware=[RunScope(warm=backends.get), SealResult(backends)], default_options={"store": False})

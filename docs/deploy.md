@@ -30,7 +30,7 @@ Role assignments (made by the template):
 | Foundry project identity | AcrPull (hosted-agent images), Log Analytics Data Reader (evaluations on traces) |
 | you (the deploying user) | Foundry User (project), Event Hubs Data Owner, Storage Blob Data Contributor, Cosmos DB Data Contributor, so you can run the code locally against the cloud |
 
-Each hosted agent gets its own Entra agent identity at deploy time. `azd deploy` grants it model access; anything else (for example the Lab reading `snapshots`) is `scripts/grant-agent-storage.sh lab` after the first deploy.
+Each hosted agent gets its own Entra agent identity at deploy time. `azd deploy` grants it model access; read access to the runs in blob storage is `scripts/grant-agent-storage.sh archivist` and `scripts/grant-agent-storage.sh lab` after the first deploy (until then the agents start, log that they could not preload the run, and load it on the first request once the role has propagated).
 
 ## Before you start
 
@@ -90,6 +90,8 @@ export STORAGE_ACCOUNT_URL=$(azd env get-value STORAGE_ACCOUNT_URL)
 uv run python -m talkback.service.generator --upload runs/md-2026
 azd deploy archivist
 azd deploy lab
+scripts/grant-agent-storage.sh archivist
+scripts/grant-agent-storage.sh lab
 azd deploy talkback
 azd deploy generator
 azd deploy mcp

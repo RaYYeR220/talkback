@@ -119,3 +119,13 @@ def test_partly_cached_run_still_fetches_missing_matches(tmp_path, monkeypatch):
     store = runstore.snapshot_store(root, "md-9")
     assert store.times("F01") == [30000]
     assert store.times("F02") == [60000]
+
+
+def test_prewarm_failure_is_logged_not_raised(caplog):
+    def load(run_id):
+        raise PermissionError("storage access not granted yet")
+
+    with caplog.at_level("WARNING"):
+        assert runs.prewarm(runs.RunCache(load), "md-2026") is False
+    assert "md-2026" in caplog.text
+    assert runs.prewarm(runs.RunCache(str.upper), "md-2026") is True

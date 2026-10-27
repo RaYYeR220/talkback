@@ -12,7 +12,7 @@ from agent_framework import Agent
 from talkback.gallery.agents.archivist import INSTRUCTIONS, archivist_tools
 from talkback.gallery.llm import make_client
 from talkback.gallery.world import World
-from talkback.hosted.runs import RunCache, RunScope, current, default_run
+from talkback.hosted.runs import RunCache, RunScope, current, default_run, prewarm
 from talkback.hosted.runstore import run_dir
 
 
@@ -32,7 +32,7 @@ def load_world(run_id: str) -> World:
 
 def build_agent() -> Agent:
     worlds = RunCache(load_world)
-    worlds.get(default_run())  # fail at start-up, not on the first moment, if the default run is missing
+    prewarm(worlds, default_run())
     return Agent(client=make_client("strong"), instructions=INSTRUCTIONS, name="archivist",
                  description="Finds the season storylines a moment makes worth saying.",
                  tools=archivist_tools(RunWorld(worlds), board=None), middleware=[RunScope(warm=worlds.get)],

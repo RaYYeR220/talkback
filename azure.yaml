@@ -96,6 +96,7 @@ services:
       TALKBACK_LLM: foundry
       AZURE_AI_MODEL_DEPLOYMENT_NAME: ${FOUNDRY_MODEL_STRONG}
       AZURE_AI_MODEL_DEPLOYMENT_NAME_FAST: ${FOUNDRY_MODEL_FAST}
+      STORAGE_ACCOUNT_URL: ${STORAGE_ACCOUNT_URL}
     # Each call without a session/conversation gets its own sandbox; a short
     # idle timeout caps what a stray sandbox costs (default is 900 s).
     sessionConfiguration:
