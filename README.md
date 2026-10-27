@@ -170,7 +170,7 @@ uv run talkback matchday --seed 2026 --out runs/md-2026
 uv run uvicorn talkback.service.app:app --port 8000
 ```
 
-The service replays the recorded run in `runs/md-2026/broadcast-replay.jsonl` until a live matchday is
+The service replays a recorded run (`TALKBACK_RUN_DIR`/`broadcast-replay.jsonl`; the image ships held-out matchday 2031) until a live matchday is
 started from the console. A live run needs a model provider:
 
 | Variable | Meaning |

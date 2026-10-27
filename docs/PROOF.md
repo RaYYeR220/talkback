@@ -27,6 +27,15 @@ hash.
 | Lines on air (English) | 1070 | 1186 | 2006 |
 <!-- EVAL-RESULTS -->
 
+**What it says.** On matchdays it had never seen, Talkback put 69% of the stories that had to reach air on air in
+time; the single model, with the same data sheet and the same model, managed 25%. It kept the delayed MENA feed
+almost clean (6 spoilers against 76) and never used strong wording on thin evidence. The control column is the
+price of the gate: with Clearance off the same drafts would have reached 92% of the stories, at the cost of 54
+spoilers, 9 over-claims and four times as many unverifiable numbers. Two results go against us: Talkback aired 15
+numbers the reference could not match (1.5%, against the single model's 0.1%, which copies its numbers from a data
+sheet), and 6 spoilers still got through in one matchday where another match scored while a line was being
+localised.
+
 ### Development set (seeds 2026–2030)
 
 The gallery was tuned while these matchdays were scored (see the amendments in the pre-registration), so they show the direction, not the record.
