@@ -4,6 +4,7 @@ import pytest
 
 import talkback.eval.baseline as baseline_mod
 import talkback.gallery.llm as llm
+import talkback.gallery.runner as runner_mod
 from talkback import cli
 from talkback.eval.baseline import save_lines
 from talkback.eval.score import Context, Line
@@ -57,3 +58,69 @@ def test_until_cuts_every_system_alike(run_dir, fixture_id, tmp_path):
     assert res["talkback"]["lines"] == 1
     assert res["talkback_without_clearance"]["lines"] == 1
     assert res["baseline"]["lines"] == 1
+
+
+class _Runner:
+    """Stands in for the gallery: records one numbered message per run and crashes when told to."""
+
+    runs = 0
+    crash = False
+
+    def __init__(self, run, gate, client_for, bc, speed, lab_pool):
+        self.bc = bc
+
+    async def run(self, until_ms=None):
+        _Runner.runs += 1
+        self.bc.publish("run", 0, {"id": "r", "n": _Runner.runs})
+        if _Runner.crash:
+            raise RuntimeError("model provider went away")
+        return {"aired": 0}
+
+
+@pytest.fixture
+def fake_gallery(monkeypatch):
+    monkeypatch.setattr(runner_mod, "MatchdayRunner", _Runner)
+    monkeypatch.setattr(llm, "make_client", lambda tier: None)
+    monkeypatch.setenv("TALKBACK_ENV", "dev")
+    monkeypatch.delenv("CONTENT_SAFETY_ENDPOINT", raising=False)
+    monkeypatch.setattr(_Runner, "runs", 0)
+    monkeypatch.setattr(_Runner, "crash", False)
+    return _Runner
+
+
+def _runs(path) -> list[int]:
+    return [json.loads(l)["data"]["n"] for l in path.read_text(encoding="utf-8").splitlines()]
+
+
+def test_a_crashed_gallery_run_leaves_no_broadcast(fake_gallery, tmp_path):
+    out = tmp_path / "broadcast-eval.jsonl"
+    fake_gallery.crash = True
+    with pytest.raises(RuntimeError, match="provider went away"):
+        cli._gallery(tmp_path, 20.0, None, out)
+    assert not out.exists()
+
+
+def test_a_gallery_rerun_replaces_the_broadcast(fake_gallery, tmp_path):
+    out = tmp_path / "broadcast-eval.jsonl"
+    fake_gallery.crash = True
+    with pytest.raises(RuntimeError, match="provider went away"):
+        cli._gallery(tmp_path, 20.0, None, out)
+    fake_gallery.crash = False
+    cli._gallery(tmp_path, 20.0, None, out)
+    cli._gallery(tmp_path, 20.0, None, out)
+    assert _runs(out) == [3]
+    assert list(tmp_path.iterdir()) == [out]
+
+
+def test_eval_all_reruns_a_gallery_that_did_not_complete(fake_gallery, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "runs" / "md-2026").mkdir(parents=True)
+    scored = []
+    monkeypatch.setattr(cli, "_eval", lambda run, broadcast, *rest: scored.append(_runs(broadcast)) or {})
+    fake_gallery.crash = True
+    with pytest.raises(RuntimeError, match="provider went away"):
+        cli._eval_all([2026], 20.0, tmp_path / "summary.json")
+    fake_gallery.crash = False
+    cli._eval_all([2026], 20.0, tmp_path / "summary.json")
+    cli._eval_all([2026], 20.0, tmp_path / "summary.json")
+    assert scored == [[2], [2]], "only the completed run is scored, and it is reused once complete"
