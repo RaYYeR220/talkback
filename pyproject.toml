@@ -27,4 +27,4 @@ packages = ["src/talkback"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: long-running calibration and integration tests"]
-addopts = "-m 'not slow'"
+addopts = "-m 'not slow' --import-mode=importlib"
