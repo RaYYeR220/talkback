@@ -49,8 +49,7 @@ def select_xi(club: Club, rng: np.random.Generator) -> tuple[list[Player], list[
     noisy = {p.id: _overall(p) + rng.normal(0, 3) for p in club.squad}
     starters: list[Player] = []
     for pos, n in (("GK", 1), ("DF", df), ("MF", mf), ("FW", fw)):
-        pool = sorted((p for p in club.squad if p.position == pos and not p.career.returning_from_injury),
-                      key=lambda p: -noisy[p.id])
+        pool = sorted((p for p in club.squad if p.position == pos), key=lambda p: -noisy[p.id])
         starters.extend(pool[:n])
     chosen = {p.id for p in starters}
     bench = sorted((p for p in club.squad if p.id not in chosen), key=lambda p: -noisy[p.id])[:7]
