@@ -13,7 +13,8 @@ No login, keys or install needed for steps 1–4.
 4. **Open the story board** of a match: the storylines the Archivist found in the season data and which of
    them reached air. The Story Recall meter is the headline number in [PROOF.md](PROOF.md).
 5. **Start a live matchday** with *Go live* (one at a time, capped per day). Holds appear in the producer
-   queue; approve or reject them, or let them expire, which means they do not air.
+   queue, a public demo seat: approve or reject them, or let them expire, which means they do not air. The ledger
+   records which seat decided, and the kids feed never waits for a producer.
 
 ## What to check in the code
 

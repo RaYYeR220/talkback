@@ -176,6 +176,7 @@ started from the console. A live run needs a model provider:
 | `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_FAST`, `FOUNDRY_MODEL_STRONG` | Foundry project and deployments |
 | `CONTENT_SAFETY_ENDPOINT` | Content Safety (without it, local runs need `TALKBACK_ENV=dev`) |
 | `ARCHIVIST_A2A_URL`, `LAB_A2A_URL` | Hosted agents over A2A (in-process when unset) |
+| `TALKBACK_PRODUCER_KEY` | Locks the producer seat behind a key; unset, it is a public demo seat and every decision is marked as made there |
 | `EVENTHUB_FQDN`, `STORAGE_ACCOUNT_URL`, `COSMOS_ENDPOINT`, `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure services |
 
 Deploy to Azure: see [docs/deploy.md](docs/deploy.md).

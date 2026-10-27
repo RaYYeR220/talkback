@@ -19,6 +19,7 @@ Every public statement about Talkback, tagged by the kind of evidence behind it.
 | The same line can air in one territory, be held in another and be killed in a third | REPRODUCIBLE | `tests/clearance/test_packs.py::test_matrix` |
 | Any error, timeout or malformed model output is a refusal | REPRODUCIBLE | `tests/clearance/test_checks.py::test_fail_closed`; `tests/gallery/test_workflow.py` |
 | Producer holds pause the workflow and resume on the decision; silence expires as not aired | REPRODUCIBLE | `tests/gallery/test_workflow.py` |
+| A line that needs a producer never airs on the minors-safe feed | REPRODUCIBLE | `tests/clearance/test_packs.py::test_minors_safe_feed_never_waits_for_a_producer` |
 | A failing Lab or Archivist degrades the moment instead of stopping it | REPRODUCIBLE | `tests/gallery/test_workflow.py::test_lab_failure_degrades_but_moment_still_airs` |
 | The Archivist and the Lab answer over A2A v1.0 and fall back in process | REPRODUCIBLE locally, VERIFIED-LIVE as Foundry hosted agents | `tests/gallery/test_a2a.py`; agent cards in the Foundry project |
 | Graphics go to air through the EBU OGraf v1 Server API | REPRODUCIBLE | `tests/ograf/`; `/ograf/v1` and `/ograf/renderer/?renderer=uk` on the live service |
