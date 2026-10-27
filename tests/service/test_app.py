@@ -62,3 +62,59 @@ def test_generator_can_upload_an_existing_run_without_publishing(tmp_path, monke
     monkeypatch.setattr(generator, "publish", lambda *a: published.append(a))
     generator.main(["--upload", str(tmp_path), "--run-id", "md-2026"])
     assert uploaded == [(tmp_path, "md-2026")] and published == []
+
+
+def test_failed_live_start_leaves_the_replay_running(client, monkeypatch):
+    c, svc = client
+    monkeypatch.delenv("TALKBACK_LLM", raising=False)  # the scripted provider refuses to start without a script
+    r = c.post("/api/live", json={"speed": 10})
+    assert r.status_code == 503
+    assert svc.gallery.mode != "live" and svc.gallery.live_started == []
+    assert c.get("/api/health").json()["mode"] != "live"
+
+
+def test_live_frames_win_over_the_recorded_run(client):
+    from types import SimpleNamespace
+
+    c, svc = client
+    item = {"match_id": "MD12-F01", "t": 5_000, "ball": [1, 2, 0], "ids": ["P1"], "pos": [[1, 2]], "speed": [0]}
+    svc.gallery.runner = SimpleNamespace(live_frames={"MD12-F01": item}, sim_t=5_000)
+    try:
+        assert c.get("/api/frames/MD12-F01?t=4000").json()["t"] == 5_000
+    finally:
+        svc.gallery.runner = None
+
+
+def test_live_feed_ends_when_it_goes_quiet():
+    import asyncio
+
+    from talkback.service.app import drain
+
+    async def go():
+        q: asyncio.Queue = asyncio.Queue()
+        q.put_nowait({"kind": "event"})
+        return [item async for item in drain(q, idle_s=0.1)]
+
+    assert asyncio.run(go()) == [{"kind": "event"}]
+
+
+def test_cors_origins_come_from_the_environment(monkeypatch):
+    from talkback.service.app import cors_origins
+
+    monkeypatch.setenv("TALKBACK_CORS_ORIGINS", "https://web.example, https://other.example")
+    assert cors_origins() == ["https://web.example", "https://other.example"]
+    monkeypatch.delenv("TALKBACK_CORS_ORIGINS")
+    assert cors_origins() == ["*"]
+
+
+def test_broadcaster_catch_up_is_bounded_and_keeps_the_run_first():
+    from talkback.gallery.bus import Broadcaster
+
+    bc = Broadcaster()
+    bc.publish("run", 0, {"id": "r1", "status": "started"})
+    for i in range(1000):
+        bc.publish("cue", i, {"id": f"Q-{i}"})
+    msgs = list(bc.last.values())
+    assert msgs[0]["kind"] == "run"
+    cues = [m for m in msgs if m["kind"] == "cue"]
+    assert len(cues) == Broadcaster.KEEP_PER_KIND and cues[-1]["data"]["id"] == "Q-999"

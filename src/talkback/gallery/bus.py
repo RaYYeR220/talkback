@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections import deque
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Protocol
@@ -68,21 +69,35 @@ class FileSource:
 
 
 class Broadcaster:
+    # What a new subscriber is sent to catch up: the latest message per key, at most this many of each kind.
+    KEEP_PER_KIND = 300
+
     def __init__(self, record_path: Path | None = None):
         self._subs: set[asyncio.Queue] = set()
         self._fh = open(record_path, "a", encoding="utf-8", newline="\n") if record_path else None
         self.last: dict[str, dict] = {}
+        self._keys: dict[str, deque[str]] = {}
 
     def publish(self, kind: str, sim_t: int, data: dict, record: bool = True) -> None:
         msg = {"kind": kind, "sim_t": sim_t, "wall": round(time.time(), 3), "data": data}
-        key = data.get("id") or data.get("match_id") or kind
-        self.last[f"{kind}:{key}"] = msg
+        key = f"{kind}:{data.get('id') or data.get('match_id') or kind}"
+        if key not in self.last:
+            keys = self._keys.setdefault(kind, deque())
+            keys.append(key)
+            while len(keys) > self.KEEP_PER_KIND:
+                self.last.pop(keys.popleft(), None)
+        self.last[key] = msg
         for q in list(self._subs):
             if q.qsize() < 5000:
                 q.put_nowait(msg)
         if record and self._fh:
             self._fh.write(json.dumps(msg, separators=(",", ":"), default=str) + "\n")
             self._fh.flush()
+
+    def reset(self) -> None:
+        """Forget the catch-up state (a new run starts)."""
+        self.last.clear()
+        self._keys.clear()
 
     async def subscribe(self) -> AsyncIterator[dict]:
         q: asyncio.Queue = asyncio.Queue()

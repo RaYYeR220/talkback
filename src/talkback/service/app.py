@@ -28,16 +28,38 @@ from talkback.service.graphics import GraphicsDriver
 
 RUN_DIR = Path(os.environ.get("TALKBACK_RUN_DIR", "runs/md-2026"))
 REPLAY_FILE = os.environ.get("TALKBACK_REPLAY", "broadcast-replay.jsonl")
-LIVE_PER_DAY = int(os.environ.get("TALKBACK_LIVE_PER_DAY", "12"))
+# Each live run costs model tokens; the public console can start at most this many a day.
+LIVE_PER_DAY = int(os.environ.get("TALKBACK_LIVE_PER_DAY", "3"))
 LIVE_SPEED = float(os.environ.get("TALKBACK_LIVE_SPEED", "10"))
+# A live feed that goes quiet this long has ended (the generator died or never sent `end`) ...
+LIVE_IDLE_S = float(os.environ.get("TALKBACK_LIVE_IDLE_S", "180"))
+# ... and no live run, however it is fed, holds the console for longer than this.
+LIVE_MAX_S = float(os.environ.get("TALKBACK_LIVE_MAX_S", str(75 * 60)))
 REPLAY_SPEED = float(os.environ.get("TALKBACK_REPLAY_SPEED", "10"))
 # How long the finished replay stays on screen before it starts again.
 REPLAY_HOLD_S = float(os.environ.get("TALKBACK_REPLAY_HOLD_S", "90"))
 
 
 class StartRequest(BaseModel):
-    # Below 1x a run would hold the only live slot for hours; above 20x the token rate outruns the budget.
-    speed: float | None = Field(default=None, ge=1, le=20)
+    # At 2x a matchday's feed takes about 49 minutes, inside the generator job's one-hour limit; above 20x the
+    # token rate outruns the budget.
+    speed: float | None = Field(default=None, ge=2, le=20)
+
+
+def cors_origins() -> list[str]:
+    return [o.strip() for o in os.environ.get("TALKBACK_CORS_ORIGINS", "*").split(",") if o.strip()] or ["*"]
+
+
+async def drain(queue: asyncio.Queue, idle_s: float):
+    """Items from a live feed until `end`, or until nothing has arrived for `idle_s`."""
+    while True:
+        try:
+            item = await asyncio.wait_for(queue.get(), idle_s)
+        except TimeoutError:
+            return
+        yield item
+        if item.get("kind") == "end":
+            return
 
 
 class Decision(BaseModel):
@@ -81,7 +103,9 @@ class Gallery:
         while True:
             self.mode, self.run_id = "replay", f"replay:{path.stem}"
             self.ledger.clear()
-            self.bc.last.clear()
+            self.bc.reset()
+            if self.graphics is not None:
+                self.graphics.speed = REPLAY_SPEED
             loop = asyncio.get_running_loop()
             wall0 = loop.time()
             for msg in msgs:
@@ -105,32 +129,40 @@ class Gallery:
         from talkback.gallery.runner import MatchdayRunner
         from talkback.service.safety import make_safety
 
+        from talkback.service.cloud import cloud_enabled
+
         if self.mode == "live":
             raise HTTPException(409, "a live matchday is already running")
         day_ago = time.time() - 86_400
         self.live_started = [t for t in self.live_started if t > day_ago]
         if len(self.live_started) >= LIVE_PER_DAY:
             raise HTTPException(429, "daily live-run cap reached; the replay keeps playing")
+        run_id = f"live-{int(time.time())}"
+        self.pool = self.pool or ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1))
+        runner = None
+        if not cloud_enabled():
+            # build everything that can fail before touching the replay, so a failed start changes nothing
+            try:
+                clients = {"fast": make_client("fast"), "strong": make_client("strong")}
+                runner = MatchdayRunner(self.run_dir, Gate(load_packs(PACKS_DIR), make_safety()),
+                                        clients.__getitem__, self.bc, speed=speed, lab_pool=self.pool,
+                                        run_id=run_id)
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(503, f"live matchday unavailable ({type(exc).__name__}); "
+                                         "the replay keeps playing") from exc
         if self.task:
             self.task.cancel()
         self.live_started.append(time.time())
-        self.run_id = f"live-{int(time.time())}"
+        self.run_id = run_id
         self.mode = "live"
         self.ledger.clear()
-        self.bc.last.clear()
+        self.bc.reset()
         record = self.run_dir / f"broadcast-{self.run_id}.jsonl"
         self.bc._fh = open(record, "a", encoding="utf-8", newline="\n")
-        self.pool = self.pool or ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1))
         if self.graphics is not None:
             self.graphics.speed = speed
         self.live_speed = speed
-        from talkback.service.cloud import cloud_enabled
-
-        if not cloud_enabled():
-            clients = {"fast": make_client("fast"), "strong": make_client("strong")}
-            self.runner = MatchdayRunner(self.run_dir, Gate(load_packs(PACKS_DIR), make_safety()),
-                                         clients.__getitem__, self.bc, speed=speed, lab_pool=self.pool,
-                                         run_id=self.run_id)
+        self.runner = runner
         self.task = asyncio.create_task(self._live())
         return self.run_id
 
@@ -146,29 +178,22 @@ class Gallery:
 
         seed = int(time.time()) % 100_000
         run_id = f"md-{seed}-{int(time.time())}"
-        buffer: asyncio.Queue = asyncio.Queue()
+        buffer: asyncio.Queue = asyncio.Queue(maxsize=50_000)
 
         async def pump() -> None:
             async for item in EventHubsSource(run_id).items():
                 await buffer.put(item)
 
-        async def items():
-            while True:
-                item = await buffer.get()
-                yield item
-                if item.get("kind") == "end":
-                    return
-
         pump_task = asyncio.create_task(pump())
-        await asyncio.sleep(2)  # let the consumer attach before the first event is published
-        await start_generator(run_id, seed, speed)
-        self.bc.publish("run", 0, {"id": run_id, "status": "generating", "mode": "live"}, record=False)
-        dest = await wait_for_run(run_id, Path(os.environ.get("TMPDIR", "/tmp")) / "talkback-live" / run_id)
-        clients = {"fast": make_client("fast"), "strong": make_client("strong")}
-        self.runner = MatchdayRunner(dest, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__, self.bc,
-                                     speed=speed, lab_pool=self.pool, run_id=run_id)
         try:
-            await self.runner.run_feed(items())
+            await asyncio.sleep(2)  # let the consumer attach before the first event is published
+            await start_generator(run_id, seed, speed)
+            self.bc.publish("run", 0, {"id": run_id, "status": "generating", "mode": "live"}, record=False)
+            dest = await wait_for_run(run_id, Path(os.environ.get("TMPDIR", "/tmp")) / "talkback-live" / run_id)
+            clients = {"fast": make_client("fast"), "strong": make_client("strong")}
+            self.runner = MatchdayRunner(dest, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__,
+                                         self.bc, speed=speed, lab_pool=self.pool, run_id=run_id)
+            await self.runner.run_feed(drain(buffer, LIVE_IDLE_S))
         finally:
             pump_task.cancel()
         return run_id
@@ -177,10 +202,12 @@ class Gallery:
         from talkback.service.cloud import cloud_enabled
 
         try:
-            if cloud_enabled():
-                await self.start_cloud(getattr(self, "live_speed", LIVE_SPEED))
-            else:
-                await self.runner.run()
+            run = (self.start_cloud(getattr(self, "live_speed", LIVE_SPEED)) if cloud_enabled()
+                   else self.runner.run())
+            await asyncio.wait_for(run, LIVE_MAX_S)
+        except Exception as exc:  # noqa: BLE001 - whatever happened, the console goes back to the replay
+            self.bc.publish("run", self.sim_t, {"id": self.run_id, "status": "failed", "error": type(exc).__name__},
+                            record=False)
         finally:
             self.bc.close()
             self.mode = "idle"
@@ -207,6 +234,15 @@ async def lifespan(app: FastAPI):
     driver = GraphicsDriver(OGrafClient(http), speed=REPLAY_SPEED)
     gallery.graphics = driver
     graphics_task = asyncio.create_task(driver.run(gallery.bc.subscribe))
+
+    async def follow() -> None:
+        # the ledger and the clock are kept whether or not anyone is watching the stream
+        async for msg in gallery.bc.subscribe():
+            gallery._remember(msg)
+            if gallery.runner is not None:
+                gallery.sim_t = gallery.runner.sim_t
+
+    follow_task = asyncio.create_task(follow())
     from talkback.service.ledger import make_ledger
 
     ledger = make_ledger()
@@ -215,6 +251,7 @@ async def lifespan(app: FastAPI):
         ledger_task = asyncio.create_task(ledger.run(gallery.bc.subscribe, lambda: gallery.run_id or "unknown"))
     yield
     graphics_task.cancel()
+    follow_task.cancel()
     if ledger_task:
         ledger_task.cancel()
         await ledger.close()
@@ -226,7 +263,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Talkback", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PUT", "DELETE"],
+app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"],
                    allow_headers=["*"])
 ograf.mount(app, prefix="/ograf/v1", base="/ograf")
 
@@ -247,10 +284,6 @@ async def stream() -> StreamingResponse:
     async def gen():
         yield f"event: hello\ndata: {json.dumps({'mode': gallery.mode, 'run': gallery.run_id})}\n\n"
         async for msg in gallery.bc.subscribe():
-            if msg["kind"] == "cue":
-                gallery._remember(msg)
-            if gallery.runner is not None:
-                gallery.sim_t = gallery.runner.sim_t
             yield f"event: {msg['kind']}\ndata: {json.dumps(msg, default=str)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream",
@@ -260,7 +293,7 @@ async def stream() -> StreamingResponse:
 @app.get("/api/frames/{match_id}")
 def frame(match_id: str, t: int | None = None) -> dict:
     live = getattr(gallery.runner, "live_frames", None)
-    if live and t is None and match_id in live:
+    if live and match_id in live:  # a cloud run has no tracking on disk here; its latest frame is the one
         item = live[match_id]
         return {k: item[k] for k in ("match_id", "t", "ball", "ids", "pos")}
     at = gallery.sim_t if t is None else t
