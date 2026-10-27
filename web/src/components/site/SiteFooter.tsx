@@ -9,7 +9,8 @@ export function SiteFooter() {
           {LEAGUE_NAME} is fictional: invented clubs, players and seasons, simulated matches. No real data.
         </p>
         <p>
-          Territory packs are illustrative editorial templates, not legal advice. Chances are simulated, never odds.
+          Territory packs are illustrative editorial templates, not legal advice. Table chances come from simulated
+          finishes of the season.
         </p>
       </div>
     </footer>

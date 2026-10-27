@@ -9,6 +9,9 @@
   padding: var(--space-5) var(--gutter) var(--space-6);
   display: grid;
   gap: var(--space-1);
-  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.02em;
+  line-height: 1.7;
   color: var(--fg-faint);
 }

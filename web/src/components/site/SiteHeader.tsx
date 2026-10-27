@@ -17,9 +17,21 @@ export function Brand() {
   );
 }
 
-export function SiteHeader({ current, children }: { current?: string; children?: ReactNode }) {
+/**
+ * The gallery's top bar. `overlay` lays it transparently over the landing stage
+ * instead of a sticky bar.
+ */
+export function SiteHeader({
+  current,
+  children,
+  overlay = false,
+}: {
+  current?: string;
+  children?: ReactNode;
+  overlay?: boolean;
+}) {
   return (
-    <header className={styles.header}>
+    <header className={styles.header} data-overlay={overlay || undefined}>
       <div className={styles.inner}>
         <Brand />
         <nav aria-label="Main" className={styles.nav}>
