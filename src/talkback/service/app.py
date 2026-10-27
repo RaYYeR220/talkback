@@ -200,8 +200,17 @@ async def lifespan(app: FastAPI):
     driver = GraphicsDriver(OGrafClient(http), speed=REPLAY_SPEED)
     gallery.graphics = driver
     graphics_task = asyncio.create_task(driver.run(gallery.bc.subscribe))
+    from talkback.service.ledger import make_ledger
+
+    ledger = make_ledger()
+    ledger_task = None
+    if ledger is not None:
+        ledger_task = asyncio.create_task(ledger.run(gallery.bc.subscribe, lambda: gallery.run_id or "unknown"))
     yield
     graphics_task.cancel()
+    if ledger_task:
+        ledger_task.cancel()
+        await ledger.close()
     await http.aclose()
     if gallery.task:
         gallery.task.cancel()

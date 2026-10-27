@@ -339,6 +339,19 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-cosmos"
+version = "4.17.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/6d/5604820fa3417d98e61c57d07447500fce600d10695bed02f396c2d548b7/azure_cosmos-4.17.1.tar.gz", hash = "sha256:d692928a54d88163e96d41d8f899229ca2f6a6bf21973ece2bfc1f72d4b4edd8", size = 2494950, upload-time = "2026-09-16T22:21:15.154Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/04/d99d0b32c9265d0890b071fc062ae76c0dedc94a8071b9c36c8b0962d6a2/azure_cosmos-4.17.1-py3-none-any.whl", hash = "sha256:a33b796d055d1923b6dc7b6195aa1cfb5ae786dbc38771bb4ad702b0e5ec18db", size = 505766, upload-time = "2026-09-16T22:21:17.575Z" },
+]
+
+[[package]]
 name = "azure-eventhub"
 version = "5.15.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1912,6 +1925,7 @@ dependencies = [
     { name = "agent-framework-openai" },
     { name = "agent-framework-orchestrations" },
     { name = "azure-ai-contentsafety" },
+    { name = "azure-cosmos" },
     { name = "azure-eventhub" },
     { name = "azure-eventhub-checkpointstoreblob-aio" },
     { name = "azure-identity" },
@@ -1941,6 +1955,7 @@ requires-dist = [
     { name = "agent-framework-openai", specifier = ">=1.17.0" },
     { name = "agent-framework-orchestrations", specifier = ">=1.4.0" },
     { name = "azure-ai-contentsafety", specifier = ">=1.0.0" },
+    { name = "azure-cosmos", specifier = ">=4.17.1" },
     { name = "azure-eventhub", specifier = ">=5.15.1" },
     { name = "azure-eventhub-checkpointstoreblob-aio", specifier = ">=1.2.0" },
     { name = "azure-identity", specifier = ">=1.27.0" },
