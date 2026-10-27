@@ -14,6 +14,7 @@
     "strongModelName": { "value": "${STRONG_MODEL_NAME=gpt-6.1-sol}" },
     "strongModelVersion": { "value": "${STRONG_MODEL_VERSION=2026-09-29}" },
     "strongModelCapacity": { "value": "${STRONG_MODEL_CAPACITY=50}" },
+    "deployModels": { "value": "${DEPLOY_MODELS=true}" },
 
     "agentsOnAca": { "value": "${AGENTS_ON_ACA=false}" },
     "assignAgentConsumerRole": { "value": "${ASSIGN_AGENT_CONSUMER_ROLE=true}" },

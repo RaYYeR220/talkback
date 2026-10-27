@@ -32,6 +32,8 @@ param strongModelVersion string = '2026-09-29'
 @description('Thousands of tokens per minute.')
 param strongModelCapacity int = 50
 param modelSkuName string = 'GlobalStandard'
+@description('false provisions everything but the model deployments (a subscription without model quota yet); the gallery then serves its recorded replay only.')
+param deployModels bool = true
 
 // Hosted agents (azure.ai.agent services in azure.yaml). Names must match there.
 param archivistAgentName string = 'talkback-archivist'
@@ -137,7 +139,7 @@ module foundry 'modules/foundry.bicep' = {
     tags: tags
     accountName: names.foundry
     projectName: names.project
-    deployments: deployments
+    deployments: deployModels ? deployments : []
     appInsightsId: monitoring.outputs.appInsightsId
     appInsightsConnectionString: monitoring.outputs.connectionString
     workspaceName: monitoring.outputs.workspaceName
