@@ -137,6 +137,31 @@ def test_presenter_cues_go_to_the_ifb_strip_until_they_expire(op):
     assert data["cueId"] == "P1"
 
 
+LINES = {"br": "Okafor tem 14 pressões.", "es": "Okafor suma 14 presiones.", "kids": "Okafor is pressing hard!",
+         "mena": ARABIC, "uk": "Okafor has 14 pressures."}
+
+
+def verdicts(**overrides):
+    """Every territory ON_AIR with its own line, in the order Clearance writes them (br first)."""
+    return {t: overrides.get(t, (Verdict.ON_AIR, LINES[t])) for t in LINES}
+
+
+def test_the_presenter_strip_follows_the_uk_verdict_and_line(op):
+    cue = make_cue("stat_card", audience="presenter", cue_id="P1", verdicts=verdicts())
+    planned = [a for t in cue.verdicts for a in op.plan(cue, t, NOW)]
+    loads = [a for a in planned if a.action == "load"]
+    assert [(a.renderer_id, a.data["text"], a.data["lang"]) for a in loads] == [("presenter", LINES["uk"], "en")]
+    killed = make_cue("stat_card", audience="presenter", cue_id="P2", verdicts=verdicts(uk=Verdict.KILLED))
+    assert [a for t in killed.verdicts for a in GraphicsOp().plan(killed, t, NOW)] == []
+
+
+def test_the_world_feed_airs_what_uk_cleared(op):
+    load = op.plan(make_cue("lower_third", verdicts=verdicts()), "world", NOW)[0]
+    assert (load.renderer_id, load.data["line"], load.data["lang"]) == ("world", LINES["uk"], "en")
+    held = make_cue("lower_third", cue_id="Q-2", verdicts=verdicts(uk=Verdict.HOLD_FOR_PRODUCER))
+    assert op.plan(held, "world", NOW) == [] and "not ON_AIR" in op.log[-1]
+
+
 def test_spoken_ifb_is_retired_now(op):
     op.plan(make_cue(audience="presenter", cue_id="P1", max_age_ms=20_000), "uk", NOW)
     stop = op.retire("P1", NOW + 3_000)

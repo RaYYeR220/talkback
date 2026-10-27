@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,6 +75,9 @@ AS_STAT_CARD = ("counterfactual_card", "table_swing")
 IFB_LABELS = {"story_card": "STORY", "stat_card": "STAT", "counterfactual_card": "WHAT IF", "table_swing": "TABLE",
               "lower_third": "NAME", "player_tag": "PLAYER"}
 LANGUAGES = {"world": "en", "uk": "en", "kids": "en", "es": "es", "mena": "ar", "br": "pt"}
+# Outputs with no clearance of their own air uk's verdict and uk's line: the international English
+# feed, and the presenter strip (presenter cues are planned only from the uk verdict).
+FOLLOWS = {"world": "uk", PRESENTER: "uk"}
 
 # Graphics carry only what Clearance passed or code computed: the cleared, localised line in the
 # free-text field, figures from the facts the line cites, and labels made here. cue.data is free
@@ -299,7 +303,7 @@ class GraphicsOp:
         self.languages = languages if languages is not None else dict(LANGUAGES)
         self.schemas = load_schemas(graphics_dir)
         self.preroll_ms = preroll_ms
-        self.log: list[str] = []
+        self.log: deque[str] = deque(maxlen=1_000)
         self._slots: dict[tuple[str, int], list[_Slot]] = {}
         self._queue: list[GraphicAction] = []
         self._instances: dict[str, str] = {}
@@ -313,10 +317,12 @@ class GraphicsOp:
 
         evidence: the facts sent with the cue; only those its claims cite are used.
         """
-        verdict = cue.verdicts.get(territory)
+        presenter = cue.audience == "presenter" or cue.template == "ifb"
+        if presenter and territory != FOLLOWS[PRESENTER]:
+            return self._drop(cue.id, territory, f"the presenter strip follows {FOLLOWS[PRESENTER]}")
+        verdict = cue.verdicts.get(FOLLOWS.get(territory, territory))
         if verdict is None or verdict.verdict != Verdict.ON_AIR:
             return self._drop(cue.id, territory, "not ON_AIR for this territory")
-        presenter = cue.audience == "presenter" or cue.template == "ifb"
         renderer = PRESENTER if presenter else self.outputs.get(territory)
         if renderer is None:
             return self._drop(cue.id, territory, "territory has no output")
