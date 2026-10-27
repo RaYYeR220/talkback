@@ -32,11 +32,16 @@ param scaleRules array = []
 
 var placeholderImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
-resource existingApp 'Microsoft.App/containerApps@2025-01-01' existing = if (exists) {
-  name: name
+module current 'fetch-image.bicep' = {
+  name: '${name}-current-image'
+  params: {
+    kind: 'app'
+    name: name
+    exists: exists
+  }
 }
 
-var image = exists ? existingApp!.properties.template.containers[0].image : placeholderImage
+var image = exists ? current.outputs.image : placeholderImage
 
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
   name: name

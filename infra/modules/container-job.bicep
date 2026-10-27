@@ -24,11 +24,16 @@ param appInsightsConnectionString string = ''
 
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
 
-resource existingJob 'Microsoft.App/jobs@2025-01-01' existing = if (exists) {
-  name: name
+module current 'fetch-image.bicep' = {
+  name: '${name}-current-image'
+  params: {
+    kind: 'job'
+    name: name
+    exists: exists
+  }
 }
 
-var image = exists ? existingJob!.properties.template.containers[0].image : placeholderImage
+var image = exists ? current.outputs.image : placeholderImage
 
 resource job 'Microsoft.App/jobs@2025-01-01' = {
   name: name
