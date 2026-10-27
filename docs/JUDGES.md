@@ -2,7 +2,7 @@
 
 No login, keys or install needed for steps 1–4.
 
-1. **Open the gallery** — the console replays the latest recorded matchday (marked REPLAY) until someone
+1. **Open the gallery** — <https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io/gallery>. The console replays the latest recorded matchday (marked REPLAY) until someone
    starts a live one. Watch the ten-match wall, the Director's "now showing … because …", and the program
    monitor with the territory switcher (World, UK, ES, MENA, KIDS, BR).
 2. **Open the clearance matrix** and click a red cell: every refused line shows the rule that refused it
@@ -23,7 +23,7 @@ No login, keys or install needed for steps 1–4.
 | The per-moment Agent Framework workflow (fan-out, fan-in, producer pause and resume) | `src/talkback/gallery/workflow.py` |
 | Clearance rules and territory packs | `src/talkback/clearance/` |
 | Counterfactual rollouts with paired random numbers | `src/talkback/sim/rollout.py`, `src/talkback/gallery/agents/lab.py` |
-| Hosted agents and A2A v1.0 | `agents/`, `src/talkback/hosted/`, `src/talkback/gallery/remote.py` |
+| Foundry hosted agents (and A2A v1.0 for A2A hosts) | `agents/`, `src/talkback/hosted/`, `src/talkback/gallery/remote.py` |
 | OGraf Server API and graphics | `src/talkback/ograf/`, `ograf/graphics/` |
 | Sealed answer key and evaluation | `src/talkback/world/key.py`, `src/talkback/eval/`, [preregistration.md](preregistration.md) |
 | Infrastructure | `infra/`, `azure.yaml`, [deploy.md](deploy.md) |

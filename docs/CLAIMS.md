@@ -21,7 +21,9 @@ Every public statement about Talkback, tagged by the kind of evidence behind it.
 | Producer holds pause the workflow and resume on the decision; silence expires as not aired | REPRODUCIBLE | `tests/gallery/test_workflow.py` |
 | A line that needs a producer never airs on the minors-safe feed | REPRODUCIBLE | `tests/clearance/test_packs.py::test_minors_safe_feed_never_waits_for_a_producer` |
 | A failing Lab or Archivist degrades the moment instead of stopping it | REPRODUCIBLE | `tests/gallery/test_workflow.py::test_lab_failure_degrades_but_moment_still_airs` |
-| The Archivist and the Lab answer over A2A v1.0 and fall back in process | REPRODUCIBLE locally, VERIFIED-LIVE as Foundry hosted agents | `tests/gallery/test_a2a.py`; agent cards in the Foundry project |
+| The Archivist and the Lab run as Foundry hosted agents the gallery calls for every moment, and fall back in process | VERIFIED-LIVE | `src/talkback/gallery/remote.py` (`HostedAgent`), `tests/gallery/test_a2a.py`; the agents in the Foundry project |
+| The Lab's answer carries only what the simulator ran for the moment, never the model's retelling | REPRODUCIBLE | `tests/hosted/test_runs.py` (`test_streamed_lab_answers_are_sealed_too`, `test_seal_carries_what_the_simulator_ran_for_the_moment`) |
+| The agents can be served and called over A2A v1.0 | REPRODUCIBLE locally | `tests/gallery/test_a2a.py`; not used live: Foundry's A2A gateway serves prompt agents only |
 | Graphics go to air through the EBU OGraf v1 Server API | REPRODUCIBLE | `tests/ograf/`; `/ograf/v1` and `/ograf/renderer/?renderer=uk` on the live service |
 | Story Recall, unverifiable numbers, over-claims and spoilers compared with a single model on the same data | MEASURED | [PROOF.md](PROOF.md) |
 | The deployment runs on Azure Container Apps, Event Hubs, Cosmos DB, Blob Storage, Content Safety, Application Insights and Foundry | VERIFIED-LIVE | `infra/`, `azure.yaml`, the live URLs in [JUDGES.md](JUDGES.md) |

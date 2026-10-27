@@ -7,7 +7,7 @@ specialised agents finds the stories a busy matchday buries, proves every line i
 line separately for every territory it will air in, and cues approved lines to the presenter and onto
 broadcast graphics.
 
-> Live gallery · Demo video · [Review in five minutes](docs/JUDGES.md) · [Proof](docs/PROOF.md) · [What we claim](docs/CLAIMS.md)
+> [Live gallery](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io) · [Console](https://talkback-web.whitegrass-fc8cab89.swedencentral.azurecontainerapps.io/gallery) · [Review in five minutes](docs/JUDGES.md) · [Proof](docs/PROOF.md) · [What we claim](docs/CLAIMS.md)
 
 ---
 
@@ -32,8 +32,8 @@ before it is cued.
 ```
 goal at 56′ in Calder Vale v Ashcombe Rovers
   Spotter      ranks it among the moments of the last 5 seconds on ten pitches
-  Archivist ┐  finds the storyline: the scorer was on 99 career goals          (A2A, Foundry hosted agent)
-  Lab       ┘  replays the moment 160 times without the shot → effect on threat (A2A, Foundry hosted agent)
+  Archivist ┐  finds the storyline: the scorer was on 99 career goals          (Foundry hosted agent)
+  Lab       ┘  replays the moment 120 times without the shot → effect on threat (Foundry hosted agent)
   Writer       drafts analyst, casual and presenter lines; every number cites a fact, every story a storyline
   Clearance    recomputes numbers and attribution, checks wording strength and causal words,
                then five territory desks localise and apply their packs in parallel
@@ -78,8 +78,8 @@ flowchart LR
     C --> P[Producer HITL]
     D[Director + live table]
   end
-  W <-. A2A v1.0 .-> A[Archivist<br/>Foundry hosted agent]
-  W <-. A2A v1.0 .-> L[Lab<br/>Foundry hosted agent]
+  W <-. Responses .-> A[Archivist<br/>Foundry hosted agent]
+  W <-. Responses .-> L[Lab<br/>Foundry hosted agent]
   A & L --> B
   W --> M[Foundry models]
   C --> CS[Content Safety]
@@ -91,7 +91,7 @@ flowchart LR
 ```
 
 Solid arrows are wired and exercised in the tests. The Archivist and Lab calls are dotted because they run
-over the network: when an A2A call fails the workflow runs the same agent in process and marks the moment
+over the network: when a remote call fails the workflow runs the same agent in process and marks the moment
 *degraded*.
 
 ## The synthetic world
@@ -133,7 +133,7 @@ Every rule is code, and every failure is a refusal.
 | | Used for |
 |---|---|
 | **Microsoft Agent Framework 1.23** | The per-moment workflow (fan-out, fan-in, request/response pauses for the producer), agents, tools, middleware, A2A client and server |
-| **Microsoft Foundry** | Models for every agent, hosted agents for the Archivist and the Lab (A2A v1.0 endpoints, Entra agent identities), tracing |
+| **Microsoft Foundry** | Models for every agent, hosted agents for the Archivist and the Lab (their own Entra agent identities, warm sessions reused across moments), tracing |
 | **Azure Container Apps** | The talkback service, MCP server and web console; the generator as a job |
 | **Azure Event Hubs** | The live matchday feed, one partition per match |
 | **Azure Cosmos DB** | The claim ledger: every line with its claims, evidence and verdicts |
@@ -152,7 +152,10 @@ Every rule is code, and every failure is a refusal.
   renderer. Reading the API and the renderer pages is public; calls that change graphics need
   `Authorization: Bearer $TALKBACK_OGRAF_TOKEN` (unset, the service makes a token per process for its own
   Graphics Op).
-* **A2A** — the Archivist and the Lab publish agent cards and answer A2A v1.0 JSON-RPC.
+* **A2A** — the Archivist and the Lab can be served as A2A v1.0 agents (`agents/common/hosting.py`,
+  `TALKBACK_SERVE_MODE=a2a`) and the gallery calls any A2A agent it is pointed at. In the deployment they are
+  Foundry hosted agents, called on their Responses endpoint: Foundry's A2A gateway serves prompt agents only and
+  answers a hosted agent with `HOSTED_AGENT_NOT_SUPPORTED`.
 * **Schemas** — `docs/schemas` has the JSON Schema of every shared object (Event, Fact, Storyline, Claim,
   Cue, verdicts). Territory packs are plain YAML.
 
@@ -175,7 +178,8 @@ started from the console. A live run needs a model provider:
 | `TALKBACK_LLM` | `foundry` (default in Azure) |
 | `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_FAST`, `FOUNDRY_MODEL_STRONG` | Foundry project and deployments |
 | `CONTENT_SAFETY_ENDPOINT` | Content Safety (without it, local runs need `TALKBACK_ENV=dev`) |
-| `ARCHIVIST_A2A_URL`, `LAB_A2A_URL` | Hosted agents over A2A (in-process when unset) |
+| `ARCHIVIST_RESPONSES_URL`, `LAB_RESPONSES_URL` | Foundry hosted agents on their Responses endpoint (in-process when unset) |
+| `ARCHIVIST_A2A_URL`, `LAB_A2A_URL` | The same agents served over A2A v1.0, used when no Responses URL is set |
 | `TALKBACK_PRODUCER_KEY` | Locks the producer seat behind a key; unset, it is a public demo seat and every decision is marked as made there |
 | `EVENTHUB_FQDN`, `STORAGE_ACCOUNT_URL`, `COSMOS_ENDPOINT`, `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure services |
 
