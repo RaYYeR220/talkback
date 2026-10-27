@@ -1,0 +1,19 @@
+# Context for the Python images (talkback, generator, mcp, hosted agents).
+# The web image has its own list in docker/web.Dockerfile.dockerignore.
+.git
+.azure
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.env
+.env.*
+*.bundle
+runs/
+tests/
+docs/
+infra/
+web/
+eval/
+**/node_modules
+**/.next
