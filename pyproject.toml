@@ -11,9 +11,13 @@ dependencies = [
     "agent-framework-foundry>=1.15.0",
     "agent-framework-openai>=1.17.0",
     "agent-framework-orchestrations>=1.4.0",
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "jsonschema>=4.23",
     "numpy>=2.1",
     "pydantic>=2.9",
     "pyyaml>=6",
+    "uvicorn>=0.32",
 ]
 
 [project.scripts]
