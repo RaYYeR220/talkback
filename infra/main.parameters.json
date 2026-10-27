@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION=swedencentral}" },
+    "resourceGroupName": { "value": "${AZURE_RESOURCE_GROUP_NAME=}" },
+    "principalId": { "value": "${AZURE_PRINCIPAL_ID=}" },
+    "principalType": { "value": "${AZURE_PRINCIPAL_TYPE=User}" },
+
+    "fastModelName": { "value": "${FAST_MODEL_NAME=gpt-5.4-mini}" },
+    "fastModelVersion": { "value": "${FAST_MODEL_VERSION=2026-03-17}" },
+    "fastModelCapacity": { "value": "${FAST_MODEL_CAPACITY=50}" },
+    "strongModelName": { "value": "${STRONG_MODEL_NAME=gpt-6.1-sol}" },
+    "strongModelVersion": { "value": "${STRONG_MODEL_VERSION=2026-09-29}" },
+    "strongModelCapacity": { "value": "${STRONG_MODEL_CAPACITY=50}" },
+
+    "agentsOnAca": { "value": "${AGENTS_ON_ACA=false}" },
+    "assignAgentConsumerRole": { "value": "${ASSIGN_AGENT_CONSUMER_ROLE=true}" },
+    "talkbackMinReplicas": { "value": "${TALKBACK_MIN_REPLICAS=1}" },
+    "talkbackMaxReplicas": { "value": "${TALKBACK_MAX_REPLICAS=1}" },
+    "webMinReplicas": { "value": "${WEB_MIN_REPLICAS=1}" },
+
+    "cosmosFreeTier": { "value": "${COSMOS_FREE_TIER=true}" },
+    "eventHubSku": { "value": "${EVENTHUB_SKU=Standard}" },
+    "logDailyCapGb": { "value": "${LOG_DAILY_CAP_GB=0.5}" },
+
+    "budgetAmount": { "value": "${BUDGET_AMOUNT=60}" },
+    "budgetContactEmail": { "value": "${BUDGET_CONTACT_EMAIL=}" },
+
+    "talkbackExists": { "value": "${SERVICE_TALKBACK_RESOURCE_EXISTS=false}" },
+    "generatorExists": { "value": "${SERVICE_GENERATOR_RESOURCE_EXISTS=false}" },
+    "webExists": { "value": "${SERVICE_WEB_RESOURCE_EXISTS=false}" },
+    "mcpExists": { "value": "${SERVICE_MCP_RESOURCE_EXISTS=false}" },
+    "archivistAcaExists": { "value": "${SERVICE_ARCHIVIST_ACA_RESOURCE_EXISTS=false}" },
+    "labAcaExists": { "value": "${SERVICE_LAB_ACA_RESOURCE_EXISTS=false}" }
+  }
+}

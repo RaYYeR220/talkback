@@ -1,0 +1,8 @@
+# Only web/ goes into the web image context.
+*
+!web/
+web/node_modules
+web/.next
+web/out
+web/.env
+web/.env.*
