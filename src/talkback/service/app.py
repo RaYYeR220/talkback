@@ -195,6 +195,10 @@ ograf = OGrafServer()
 async def lifespan(app: FastAPI):
     import httpx
 
+    from talkback.service import telemetry
+
+    telemetry.configure()
+
     gallery.task = asyncio.create_task(gallery.replay_loop())
     http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://talkback.local")
     driver = GraphicsDriver(OGrafClient(http), speed=REPLAY_SPEED)
