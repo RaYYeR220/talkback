@@ -22,6 +22,17 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable \
     && useradd --uid 10001 --no-create-home app
 
+# OGraf graphics packages and renderer pages.
+COPY ograf ./ograf
+ENV TALKBACK_OGRAF_DIR=/app/ograf \
+    TALKBACK_RUN_DIR=/app/runs/md-2026
+
+# The replay matchday is regenerated deterministically from its seed; the recorded broadcast of a real run
+# ships next to it, so the gallery is watchable without starting a live run.
+RUN python -m talkback.cli matchday --seed 2026 --out /app/runs/md-2026
+COPY replays/md-2026.jsonl /app/runs/md-2026/broadcast-replay.jsonl
+RUN chown -R app /app/runs
+
 USER app
 EXPOSE 8000
 CMD ["uvicorn", "talkback.service.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
