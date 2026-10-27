@@ -81,6 +81,12 @@ def _word_value(word: str, lang: str) -> int | None:
     return words.get(head) if "-" in w else None
 
 
+def number_words(text: str, lang: str) -> list[tuple[int, float, str]]:
+    """(position, value, word) of every number written as a word."""
+    return [(m.start(), float(v), m.group(0)) for m in _WORD.finditer(text)
+            if (v := _word_value(m.group(0), base_lang(lang))) is not None]
+
+
 @dataclass(frozen=True)
 class NumberToken:
     value: float
@@ -136,10 +142,7 @@ def _negative(s: str, start: int) -> bool:
 
 def extract_tokens(text: str, lang: str) -> list[NumberToken]:
     s = normalize_digits(text)
-    found: list[tuple[int, NumberToken]] = []
-    for m in _WORD.finditer(s):
-        if (v := _word_value(m.group(0), base_lang(lang))) is not None:
-            found.append((m.start(), NumberToken(value=float(v), raw=m.group(0))))
+    found: list[tuple[int, NumberToken]] = [(at, NumberToken(value=v, raw=w)) for at, v, w in number_words(s, lang)]
     for m in _NUM.finditer(s):
         if m.group("base"):
             value = float(m.group("base")) + float(m.group("add"))

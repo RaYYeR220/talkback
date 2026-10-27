@@ -59,11 +59,16 @@ NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(%|km/h|km)?")
 
 
 def numbers(text: str) -> list[tuple[float, str]]:
-    out = []
+    """Numbers in an English line, in order: digits with their unit, and number words (the same tables Clearance
+    uses), so no system's line escapes the count by spelling a number out."""
+    from talkback.clearance.numbers import number_words
+
+    found = []
     for m in NUMBER.finditer(text):
         raw = m.group(1).replace(",", ".")
         try:
-            out.append((float(raw), m.group(2) or ""))
+            found.append((m.start(), (float(raw), m.group(2) or "")))
         except ValueError:
             continue
-    return out
+    found += [(at, (v, "")) for at, v, _ in number_words(text, "en")]
+    return [n for _, n in sorted(found, key=lambda p: p[0])]

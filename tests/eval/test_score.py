@@ -73,3 +73,9 @@ def test_mena_spoilers_are_read_in_the_english_source_too(ctx, tmp_path):
     path.write_text(json.dumps(cue) + "\n", encoding="utf-8")
     lines = lines_from_broadcast(path, "talkback")
     assert score(ctx, lines)["talkback"]["mena_spoilers"] == 1
+
+
+def test_number_words_count_as_numbers_for_every_system():
+    from talkback.eval.detect import numbers
+
+    assert [v for v, _ in numbers("three goals and 4 shots")] == [3.0, 4.0]

@@ -68,3 +68,8 @@ sealed key hashes are unchanged.
   cached per cut; before, baseline lines past the cut were scored and a cut baseline could be reused by a full run.
 * **`talkback eval-all`** — scores only broadcasts of gallery runs that completed; before, a crashed run's partial
   recording, or two runs appended to one file, could be scored.
+* **Unverifiable numbers** — numbers written as words (English) are counted as numbers, for every system, with the
+  same word tables Clearance uses; before, a system could keep a number out of the count by spelling it out.
+* **Latency and air time** — a Talkback line's latency is measured from the moment it was spotted to the moment it
+  aired, so time waiting in the queue and for the producer counts; before, it was the sum of the agents' own times,
+  which left waiting out and double-counted the Archivist and the Lab, which run in parallel.
