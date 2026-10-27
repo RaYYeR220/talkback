@@ -92,18 +92,11 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   }
 }
 
-// Connections on the project resolve with this API version (GA 2025-06-01
-// misses the connections sub-resource, per the azd synthesizer notes).
-resource accountPreview 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
-  name: account.name
-
-  resource project 'projects' existing = {
-    name: projectName
-  }
-}
-
+// The connection type takes the preview API version (GA 2025-06-01 misses the connections sub-resource); its
+// parent is the project declared above. A second, `existing` declaration of the project would make ARM see the
+// same resource defined twice.
 resource appInsightsConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = {
-  parent: accountPreview::project
+  parent: account::project
   name: 'appinsights'
   properties: {
     category: 'AppInsights'
@@ -118,9 +111,6 @@ resource appInsightsConnection 'Microsoft.CognitiveServices/accounts/projects/co
       ResourceId: appInsightsId
     }
   }
-  dependsOn: [
-    account::project
-  ]
 }
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
