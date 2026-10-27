@@ -6,6 +6,11 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "agent-framework-ag-ui>=1.7.0",
+    "agent-framework-core==1.23.0",
+    "agent-framework-foundry>=1.15.0",
+    "agent-framework-openai>=1.17.0",
+    "agent-framework-orchestrations>=1.4.0",
     "numpy>=2.1",
     "pydantic>=2.9",
     "pyyaml>=6",
