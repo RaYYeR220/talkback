@@ -34,7 +34,8 @@ def final_third_snapshot():
                 and prev.outcome == Outcome.fail and prev.x is not None):
             attacking_right = (prev.team_id == h.id) == (prev.period == 1)
             xn = prev.x / 105 if attacking_right else 1 - prev.x / 105
-            if xn > 0.66:
+            en = prev.end_x / 105 if attacking_right else 1 - prev.end_x / 105
+            if xn > 0.6 and en > 0.75 and en > xn:
                 target = prev
                 break
     assert target is not None

@@ -14,7 +14,7 @@ from typing import Annotated, Callable, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from talkback.schemas.models import EventType, Outcome
+from talkback.schemas.models import EventType
 from talkback.sim.engine import EngineState, MatchEngine
 from talkback.world.league import StyleVector
 
@@ -61,6 +61,10 @@ Intervention = Annotated[FlipEvent | ShiftPlayer | Tactic, Field(discriminator="
 
 
 class RolloutMetrics(BaseModel):
+    """Means over rollouts. `xt_gain` is the possession-weighted threat balance over the
+    horizon: the ball's expected-threat value while the team has it, minus the
+    opponent's while they have it."""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     goal_for: float
@@ -96,7 +100,8 @@ def _one(eng: MatchEngine, snapshot: EngineState, iv, team_id: str, horizon_ms: 
     k = eng.club_ids.index(team_id)
     end = eng.t + horizon_ms
     gf = ga = 0.0
-    xt = 0.0
+    threat = 0.0
+    ticks = 0
     while eng.t < end and not eng.done:
         _, events = eng.step()
         for e in events:
@@ -105,11 +110,13 @@ def _one(eng: MatchEngine, snapshot: EngineState, iv, team_id: str, horizon_ms: 
                     gf = 1.0
                 else:
                     ga = 1.0
-            elif (e.team_id == team_id and e.end_x is not None and e.x is not None
-                  and ((e.type == EventType.pass_ and e.outcome == Outcome.success) or e.type == EventType.carry)):
-                ar = eng.attacking_right(k)
-                xt += eng.xt.value(e.end_x, e.end_y, ar) - eng.xt.value(e.x, e.y, ar)
-    return gf, ga, xt
+        bx, by = float(eng.s.ball[0]), float(eng.s.ball[1])
+        if eng.s.possession_team == k:
+            threat += eng.xt.value(bx, by, eng.attacking_right(k))
+        else:
+            threat -= eng.xt.value(bx, by, eng.attacking_right(1 - k))
+        ticks += 1
+    return gf, ga, threat / max(1, ticks)
 
 
 def _chunk(args) -> list[tuple[tuple[float, float, float], tuple[float, float, float]]]:
