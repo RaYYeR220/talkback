@@ -12,7 +12,7 @@ import os
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
-from agent_framework import BaseChatClient, ChatResponse, ChatResponseUpdate, Message
+from agent_framework import BaseChatClient, ChatMiddleware, ChatResponse, ChatResponseUpdate, Message
 
 Tier = Literal["fast", "strong"]
 
@@ -37,6 +37,17 @@ class ScriptedClient(BaseChatClient):
         return ChatResponse(messages=[Message(role="assistant", contents=[text])], response_id=f"scripted-{self.calls}")
 
 
+class ReasoningEffort(ChatMiddleware):
+    """Sets the reasoning effort on every call to a reasoning model: a live gallery wants answers in seconds."""
+
+    def __init__(self, effort: str):
+        self.effort = effort
+
+    async def process(self, context, call_next) -> None:
+        context.options = {**(context.options or {}), "reasoning": {"effort": self.effort}}
+        await call_next()
+
+
 def message_text(messages: Sequence[Message]) -> str:
     return "\n".join(m.text or "" for m in messages)
 
@@ -52,8 +63,11 @@ def make_client(tier: Tier = "fast", script: Callable[[Sequence[Message]], str] 
         from agent_framework.foundry import FoundryChatClient
 
         model = os.environ["FOUNDRY_MODEL_STRONG" if tier == "strong" else "FOUNDRY_MODEL_FAST"]
+        # only for reasoning models (gpt-5, o-series); others reject the option
+        effort = os.environ.get(f"TALKBACK_REASONING_EFFORT_{tier.upper()}")
         return FoundryChatClient(project_endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"], model=model,
-                                 credential=DefaultAzureCredential())
+                                 credential=DefaultAzureCredential(),
+                                 middleware=[ReasoningEffort(effort)] if effort else None)
     if which == "venice":
         from openai import AsyncOpenAI
         from agent_framework.openai import OpenAIChatCompletionClient

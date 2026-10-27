@@ -32,6 +32,8 @@ param strongModelVersion string = '2026-09-29'
 @description('Thousands of tokens per minute.')
 param strongModelCapacity int = 50
 param modelSkuName string = 'GlobalStandard'
+@description('Reasoning effort for the strong model when it is a reasoning model (gpt-5, o-series); empty for one that is not.')
+param strongReasoningEffort string = 'low'
 @description('false provisions everything but the model deployments (a subscription without model quota yet); the gallery then serves its recorded replay only.')
 param deployModels bool = true
 
@@ -258,6 +260,7 @@ var foundryEnv = [
   { name: 'FOUNDRY_PROJECT_ENDPOINT', value: foundry.outputs.projectEndpoint }
   { name: 'FOUNDRY_MODEL_FAST', value: fastModelName }
   { name: 'FOUNDRY_MODEL_STRONG', value: strongModelName }
+  { name: 'TALKBACK_REASONING_EFFORT_STRONG', value: strongReasoningEffort }
   { name: 'CONTENT_SAFETY_ENDPOINT', value: foundry.outputs.accountEndpoint }
 ]
 var eventHubEnv = [
@@ -547,6 +550,7 @@ output AZURE_AI_SERVICES_ENDPOINT string = foundry.outputs.accountEndpoint
 output CONTENT_SAFETY_ENDPOINT string = foundry.outputs.accountEndpoint
 output FOUNDRY_MODEL_FAST string = fastModelName
 output FOUNDRY_MODEL_STRONG string = strongModelName
+output TALKBACK_REASONING_EFFORT_STRONG string = strongReasoningEffort
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = registry.outputs.name

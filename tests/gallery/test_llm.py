@@ -42,3 +42,22 @@ def test_wrong_shape_is_a_parse_error():
 def test_braces_inside_strings():
     p = parse_json('noise {"storyline_id": "S-{1}", "why_now": "a } b"} trailing', Pick)
     assert p.storyline_id == "S-{1}"
+
+
+def test_reasoning_effort_is_set_on_every_call():
+    import asyncio
+
+    from agent_framework import ChatMiddlewareLayer, Message
+
+    from talkback.gallery.llm import ReasoningEffort, ScriptedClient
+
+    seen: dict = {}
+
+    class Capture(ChatMiddlewareLayer, ScriptedClient):  # the same layering as FoundryChatClient
+        async def _inner_get_response(self, *, messages, stream, options, **kwargs):
+            seen.update(options or {})
+            return await super()._inner_get_response(messages=messages, stream=stream, options=options, **kwargs)
+
+    client = Capture(script=lambda m: "ok", middleware=[ReasoningEffort("low")])
+    asyncio.run(client.get_response([Message(role="user", contents=["hi"])]))
+    assert seen.get("reasoning") == {"effort": "low"}

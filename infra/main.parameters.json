@@ -15,6 +15,7 @@
     "strongModelVersion": { "value": "${STRONG_MODEL_VERSION=2026-09-29}" },
     "strongModelCapacity": { "value": "${STRONG_MODEL_CAPACITY=50}" },
     "deployModels": { "value": "${DEPLOY_MODELS=true}" },
+    "strongReasoningEffort": { "value": "${STRONG_REASONING_EFFORT=low}" },
 
     "agentsOnAca": { "value": "${AGENTS_ON_ACA=false}" },
     "assignAgentConsumerRole": { "value": "${ASSIGN_AGENT_CONSUMER_ROLE=true}" },
