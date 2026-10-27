@@ -1,0 +1,22 @@
+territory: kids
+name: Kids / minors-safe
+langs: [en]
+delay_minutes: 0
+minors_safe: true
+disclaimer: "Illustrative editorial template — not legal advice."
+rules:
+  - id: minors-topics
+    type: kill_topics
+    rationale: No injury detail, discipline focus or personal matters on a minors-safe feed.
+    topics: [injury, discipline, personal]
+  - id: minors-strength
+    type: max_strength
+    rationale: Simpler, calmer wording; nothing absolute.
+    level: 2
+  - id: gambling
+    type: block_terms
+    action: KILLED
+    rationale: No gambling references on a minors-safe feed.
+    terms:
+      en: [bet, bets, betting, odds, bookies, bookmaker, bookmakers, accumulator, acca, punt,
+           punters, wager, wagers, flutter, in-play, price boost]

@@ -33,21 +33,26 @@ levels:
     - melhor equipe
   3:
     - dominante
+    - dominantes
     - dominando
     - dominam
     - domínio absoluto
     - domínio total
     - controle total
     - implacável
+    - implacáveis
     - sempre
     - toda vez
     - imparável
+    - imparáveis
     - completamente
     - nunca
     - jamais
     - aula de futebol
     - avassalador
+    - avassaladores
     - esmagador
+    - esmagadores
     - massacre
 causal:
   - porque
