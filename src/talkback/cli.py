@@ -24,13 +24,20 @@ def _gallery(run: Path, speed: float, until_min: float | None, out: Path | None)
     from talkback.service.safety import make_safety
 
     record = out or run / f"broadcast-{int(time.time())}.jsonl"
+    # the broadcaster appends: record into a fresh partial file and move it into place only once the run has
+    # completed, so a crashed run never leaves a broadcast behind and a re-run never adds to an earlier one
+    partial = record.with_name(record.name + ".partial")
+    partial.unlink(missing_ok=True)
     clients = {"fast": make_client("fast"), "strong": make_client("strong")}
-    bc = Broadcaster(record)
-    with ProcessPoolExecutor(max_workers=6) as pool:
-        runner = MatchdayRunner(run, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__, bc,
-                                speed=speed, lab_pool=pool)
-        stats = asyncio.run(runner.run(until_ms=int(until_min * 60_000) if until_min else None))
-    bc.close()
+    bc = Broadcaster(partial)
+    try:
+        with ProcessPoolExecutor(max_workers=6) as pool:
+            runner = MatchdayRunner(run, Gate(load_packs(PACKS_DIR), make_safety()), clients.__getitem__, bc,
+                                    speed=speed, lab_pool=pool)
+            stats = asyncio.run(runner.run(until_ms=int(until_min * 60_000) if until_min else None))
+    finally:
+        bc.close()
+    partial.replace(record)
     print(json.dumps(stats))
     print(f"broadcast recorded to {record}")
     return stats
@@ -50,7 +57,9 @@ def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | 
         ctx.events = [e for e in ctx.events if e.t <= cut]
         ctx.key = ctx.key.model_copy(update={"items": [i for i in ctx.key.items
                                                        if i.deadline == "live" and i.window_ms and i.window_ms[1] <= cut]})
-    baseline = baseline or broadcast.with_name(broadcast.stem + "-baseline.jsonl")
+    # the baseline is computed from the (cut) events, so each cut keeps its own cache
+    suffix = "-baseline.jsonl" if cut is None else f"-baseline-until{until_min:g}.jsonl"
+    baseline = baseline or broadcast.with_name(broadcast.stem + suffix)
     if baseline.exists():
         base_lines = load_lines(baseline)
     else:
@@ -58,10 +67,10 @@ def _eval(run: Path, broadcast: Path, baseline: Path | None, until_min: float | 
         save_lines(base_lines, baseline)
     ours = lines_from_broadcast(broadcast, "talkback")
     ungated = lines_from_broadcast(broadcast, "talkback_without_clearance", include_killed=True)
+    lines = ours + ungated + base_lines
     if cut is not None:
-        ours = [l for l in ours if l.sim_t <= cut + 5 * 60_000]
-        ungated = [l for l in ungated if l.sim_t <= cut + 5 * 60_000]
-    result = score(ctx, ours + ungated + base_lines)
+        lines = [l for l in lines if l.sim_t <= cut + 5 * 60_000]
+    result = score(ctx, lines)
     result["_meta"] = {"run": str(run), "broadcast": str(broadcast), "key_sha256": sealed, "until_min": until_min}
     out = json.dumps(result, indent=1)
     if report:
@@ -78,7 +87,7 @@ def _eval_all(seeds: list[int], speed: float, out: Path) -> dict:
     for seed in seeds:
         run = Path(f"runs/md-{seed}")
         broadcast = run / "broadcast-eval.jsonl"
-        if not broadcast.exists():
+        if not broadcast.exists():  # _gallery moves it into place only once a run has completed
             _gallery(run, speed, None, broadcast)
         results.append(_eval(run, broadcast, None, None, run / "eval.json"))
     summary = aggregate(results)
