@@ -21,7 +21,7 @@ from agent_framework import Executor, WorkflowBuilder, WorkflowContext, handler,
 
 from talkback.clearance.checks import CheckContext
 from talkback.clearance.gate import Gate
-from talkback.clearance.packs import PackContext
+from talkback.clearance.packs import PackContext, as_of
 from talkback.gallery.agents.archivist import make_archivist, moment_prompt, pick_storylines, stories_from_answer
 from talkback.gallery.agents.desks import TerritoryDesk, localise_all, localise_many
 from talkback.gallery.agents.lab import LabBackend, LabResult, finalize, make_lab
@@ -240,7 +240,8 @@ class ClearanceExec(Executor):
         except Exception:  # noqa: BLE001 - without translations each desk falls back to the source or refuses
             batch = [{} for _ in d.cues]
         for n, cue in enumerate(d.cues):
-            await self.deps.gate.evaluate(cue, checks(), batch[n], self.deps.pack_ctx(match_id))
+            await self.deps.gate.evaluate(cue, checks(), batch[n], as_of(self.deps.pack_ctx(match_id),
+                                                                         d.job.age_now_t()))
             if _fixable(cue):
                 # one revision: the writer sees exactly why Clearance refused and may try once more
                 try:
@@ -253,7 +254,8 @@ class ClearanceExec(Executor):
                         localized = await localise_all(second, self.deps.desks)
                     except Exception:  # noqa: BLE001
                         localized = {}
-                    await self.deps.gate.evaluate(second, checks(), localized, self.deps.pack_ctx(match_id))
+                    await self.deps.gate.evaluate(second, checks(), localized,
+                                                  as_of(self.deps.pack_ctx(match_id), d.job.age_now_t()))
                     second.data = {**second.data, "revision_of": cue.id,
                                    "first_refusal": "; ".join(cue.universal_reasons)[:300], "original_text": cue.text}
                     d.cues[n] = second

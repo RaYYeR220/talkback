@@ -21,7 +21,7 @@ from pathlib import Path
 
 from talkback.clearance.checks import CheckContext
 from talkback.clearance.gate import Gate
-from talkback.clearance.packs import PackContext
+from talkback.clearance.packs import PackContext, as_of, embargo_reasons
 from talkback.gallery.agents.desks import TerritoryDesk
 from talkback.gallery.agents.lab import LabBackend
 from talkback.gallery.bus import Broadcaster, FileSource
@@ -347,7 +347,7 @@ class MatchdayRunner:
                     continue
                 why = ("stale: state changed before air" if cue.valid_state_hash != current
                        else "stale: too old at air" if air_t is not None and air_t > cue.created_t + cue.max_age_ms
-                       else None)
+                       else self._embargo_at_air(t, v.text, cue, air_t))
                 if why:
                     cue.verdicts[t] = v.model_copy(update={"verdict": Verdict.KILLED, "reasons": v.reasons + [why]})
                     self.stats["stale"] += 1
@@ -376,6 +376,15 @@ class MatchdayRunner:
                                                        if any(f.id in cl.refs for cl in cue.claims)]})
         self.bc.publish("board", m.t, {"match_id": m.fixture_id,
                                         "stories": [s.model_dump(mode="json") for s in m.board.stories.values()]})
+
+    def _embargo_at_air(self, territory: str, text: str, cue, air_t: int | None) -> str | None:
+        """A delayed territory's embargo, again at the moment the line airs: another match may have scored
+        while the line was being cleared."""
+        pack = self.gate.packs.get(territory)
+        if pack is None or air_t is None:
+            return None
+        hits = embargo_reasons(pack, text, cue, as_of(self.pack_ctx(cue.match_id), air_t))
+        return f"{hits[0]} (at air)" if hits else None
 
     async def _template(self, m: MatchDesk, moment: Moment) -> None:
         pid = moment.subject or ""

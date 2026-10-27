@@ -186,3 +186,23 @@ def test_latency_is_measured_from_spotting_to_air(run_dir, monkeypatch):
     (cue_msg,) = [d for k, d in published if k == "cue"]
     assert 10_000 <= cue_msg["latency_ms"] < 15_000
     assert [d for k, d in published if k == "aired"]
+
+
+def test_mena_embargo_is_checked_again_at_air(run_dir, monkeypatch):
+    from talkback.schemas.models import TerritoryVerdict, Verdict
+
+    runner, published = _quiet_runner(run_dir, monkeypatch)
+    (fid, _, _), (other, oh, _) = runner.world.fixtures[0], runner.world.fixtures[1]
+    rival = runner.world.club(oh).name
+
+    def aired_in_mena(goal_t):
+        bundle, cue = _bundle_aged(runner, 10)  # airs at 10 s of match time, as a 1x broadcast sees it
+        cue.text = f"Meanwhile {rival} are on top."
+        cue.verdicts = {"mena": TerritoryVerdict(territory="mena", verdict=Verdict.ON_AIR, text="في هذه الأثناء")}
+        runner.matches[other].goal_times = [goal_t]
+        runner._air(bundle)
+        return cue.verdicts["mena"]
+
+    v = aired_in_mena(5_000)  # the rival scored 5 s before the line aired: inside the two-minute delay
+    assert v.verdict is Verdict.KILLED and any(r.startswith("embargo") for r in v.reasons)
+    assert aired_in_mena(9_000_000).verdict is Verdict.ON_AIR  # a goal after air time had not happened yet

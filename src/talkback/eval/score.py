@@ -11,6 +11,8 @@ from pydantic import BaseModel
 
 from talkback.clearance.lexicon import detect_strength
 from talkback.eval.detect import mentions_subject, numbers, surfaces
+from talkback.gallery.bus import FileSource
+from talkback.gallery.runner import _Frame
 from talkback.gallery.world import World
 from talkback.models.xt import load_xt_grid
 from talkback.schemas.models import Event, EventType
@@ -37,13 +39,14 @@ class Context:
     world: World
     key: AnswerKey
     events: list[Event]
+    run_dir: Path | None = None  # tracking frames for the facts the Stats Desk computes from them
 
     @classmethod
     def load(cls, run_dir: Path) -> "Context":
         run_dir = Path(run_dir)
         events = [Event.model_validate_json(l) for l in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
         key = AnswerKey.model_validate_json((run_dir / "key.sealed.json").read_text(encoding="utf-8"))
-        return cls(World.load(run_dir / "world.json"), key, events)
+        return cls(World.load(run_dir / "world.json"), key, events, run_dir)
 
     def name_of(self, subject: str) -> list[str]:
         w = self.world
@@ -57,9 +60,9 @@ class Context:
 
 def _known_numbers(ctx: Context) -> dict[str, list[tuple[int, set[float]]]]:
     """Per match, the set of numbers an honest line could have cited, by time (every 5 minutes)."""
+    if getattr(ctx, "_known", None) is not None:
+        return ctx._known
     w = ctx.world
-    xt = load_xt_grid()
-    out: dict[str, list[tuple[int, set[float]]]] = defaultdict(list)
     season: set[float] = set()
     for c in w.league.clubs:
         r = w.row(c.id)
@@ -71,32 +74,59 @@ def _known_numbers(ctx: Context) -> dict[str, list[tuple[int, set[float]]]]:
     for pid, st in w.player_season.items():
         season |= {float(v) for v in st.values()} | {float(v) + 1 for v in st.values()}
     season |= {float(v) for v in w.clean_sheets.values()} | {float(v) + 1 for v in w.clean_sheets.values()}
+    out: dict[str, list[tuple[int, set[float]]]] = defaultdict(list)
+    for fid, series in _fact_values(ctx).items():
+        for t, vals in series:
+            out[fid].append((t, set(season) | set(range(0, 121)) | set(vals)))
+    ctx._known = out
+    return out
+
+
+def _fact_values(ctx: Context) -> dict[str, list[tuple[int, list[float]]]]:
+    """Every Stats Desk fact value per match every 5 minutes, as fraction and as percent. Computing it reads the
+    whole matchday's tracking, so it is kept next to the run."""
+    cache = ctx.run_dir / "eval-fact-values.json" if ctx.run_dir is not None else None
+    if cache is not None and cache.exists():
+        return {fid: [(t, vals) for t, vals in series] for fid, series in json.loads(cache.read_text()).items()}
+    w = ctx.world
+    xt = load_xt_grid()
+    out: dict[str, list[tuple[int, list[float]]]] = defaultdict(list)
     by_match: dict[str, list[Event]] = defaultdict(list)
     for e in ctx.events:
         by_match[e.match_id].append(e)
+    source = FileSource(ctx.run_dir) if ctx.run_dir is not None else None
     for fid, h, a in w.fixtures:
         desk = StatsDesk(fid, w.club(h), w.club(a), xt)
         evs = by_match[fid]
-        i = 0
+        frames = source.tracking(fid) if source is not None else None
+        i = j = 0
         for t in range(0, 100 * 60_000 + 1, 5 * 60_000):
             while i < len(evs) and evs[i].t <= t:
                 desk.ingest(evs[i])
                 i += 1
-            vals = set(season) | set(range(0, 121))
+            # the same tracking the gallery's Stats Desk reads: speeds, distances, sprints, pitch control
+            while frames is not None and j < len(frames["t"]) and frames["t"][j] <= t:
+                keep = frames["slot"][j] >= 0
+                desk.ingest_frame(_Frame(int(frames["t"][j]), tuple(str(frames["players"][k])
+                                                                   for k in frames["slot"][j][keep]),
+                                         frames["pos"][j][keep].astype(float), frames["speed"][j][keep].astype(float)))
+                j += 1
+            vals = set()
             for f in desk.facts(t):
                 vals.add(round(f.value, 2))
                 vals.add(round(f.value * 100, 1))
-            out[fid].append((t, vals))
+            out[fid].append((t, sorted(vals)))
+    if cache is not None:
+        cache.write_text(json.dumps(out), encoding="utf-8")
     return out
 
 
 def _verifiable(value: float, unit: str, known: set[float]) -> bool:
     if value.is_integer() and value <= 120 and not unit:
         return True  # small integers are minute marks, scores and counts; never decisive
-    for k in known:
-        if abs(k - value) <= (0.5 if unit == "%" else 0.05):
-            return True
-    return False
+    # as Clearance allows: a whole number for a large value it rounds to ("123 km/h" for 122.7)
+    tol = 0.5 if unit == "%" or (value.is_integer() and value >= 10) else 0.05
+    return any(abs(k - value) <= tol for k in known)
 
 
 def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tuple[str, ...] = SYSTEMS) -> dict:

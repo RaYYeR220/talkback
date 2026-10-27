@@ -79,3 +79,27 @@ def test_number_words_count_as_numbers_for_every_system():
     from talkback.eval.detect import numbers
 
     assert [v for v, _ in numbers("three goals and 4 shots")] == [3.0, 4.0]
+
+
+@pytest.mark.slow
+def test_tracking_facts_are_numbers_the_gallery_could_cite(ctx, run_dir):
+    from talkback.gallery.bus import FileSource
+    from talkback.gallery.runner import _Frame
+    from talkback.models.xt import load_xt_grid
+    from talkback.stats.desk import StatsDesk
+
+    fid, h, a = ctx.world.fixtures[0]
+    desk = StatsDesk(fid, ctx.world.club(h), ctx.world.club(a), load_xt_grid())
+    f = FileSource(run_dir).tracking(fid)
+    for i in range(len(f["t"])):
+        if f["t"][i] > 20 * 60_000:
+            break
+        keep = f["slot"][i] >= 0
+        desk.ingest_frame(_Frame(int(f["t"][i]), tuple(str(f["players"][s]) for s in f["slot"][i][keep]),
+                                 f["pos"][i][keep].astype(float), f["speed"][i][keep].astype(float)))
+    # a value no small integer or season figure stands in for
+    speed = next(x for x in desk.facts(20 * 60_000) if x.metric == "player.top_speed_kmh"
+                 and 0.2 < round(x.value, 1) % 1 < 0.8)
+    name = ctx.name_of(speed.subject)[0]
+    line = Line(system="s", match_id=fid, sim_t=20 * 60_000, text=f"{name}: top speed {speed.value:.1f} km/h")
+    assert score(ctx, [line])["s"]["unverifiable_numbers"] == 0

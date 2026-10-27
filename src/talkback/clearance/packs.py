@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -94,6 +94,19 @@ class HoldTopics(_Rule):
     def check(self, text: str, lang: str, topics: set[str], cue: Cue,
               ctx: PackContext) -> list[str]:
         return [f"{self.id}: {t}" for t in self.topics if t in topics]
+
+
+def as_of(ctx: PackContext, t: int) -> PackContext:
+    """The context as a 1x broadcast sees it at match time `t`: goals scored later have not happened yet."""
+    return replace(ctx, now_t=t, recent_goal_times={f: [g for g in ts if g <= t]
+                                                    for f, ts in ctx.recent_goal_times.items()})
+
+
+def embargo_reasons(pack: "ClearancePack", text: str, cue: Cue, ctx: PackContext) -> list[str]:
+    """The pack's results-embargo rules alone, for a line that is about to air."""
+    lang = pack.langs[0]
+    return [r for rule in pack.rules if isinstance(rule, ResultsEmbargo)
+            for r in rule.check(text, lang, set(), cue, ctx)]
 
 
 class KillTopics(_Rule):

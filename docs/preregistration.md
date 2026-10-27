@@ -73,3 +73,19 @@ sealed key hashes are unchanged.
 * **Latency and air time** — a Talkback line's latency is measured from the moment it was spotted to the moment it
   aired, so time waiting in the queue and for the producer counts; before, it was the sum of the agents' own times,
   which left waiting out and double-counted the Archivist and the Lab, which run in parallel.
+
+### After the first two matchdays (2026-10-27, afternoon)
+
+Matchdays 2026 and 2027 were run and scored once; reading the flagged lines showed two defects, one in the scoring
+and one in the gallery. Both are fixed, every matchday is run again on the fixed build and scored with the fixed
+code, and the first recordings are kept next to the new ones (`broadcast-eval-first.jsonl`) for anyone who wants to
+compare.
+
+* **Unverifiable numbers (scoring)** — the reference set of numbers the gallery could have cited held the Stats
+  Desk's event-based facts only; the tracking-based ones (top speeds, shot speeds, distances, sprints) were missing,
+  so correct numbers from tracking counted as unverifiable. The reference now runs the same tracking through the same
+  Stats Desk. A whole number written for a value of 10 or more that it rounds to ("123 km/h" for 122.7) is
+  verifiable, as in Clearance.
+* **MENA embargo (gallery)** — the territory desk judged the two-minute window on the gallery's compressed clock and
+  only when the line was cleared; another match could score while a line waited to air. The window is now judged at
+  the line's air time as a live broadcast would see it, and again at the moment it airs.
