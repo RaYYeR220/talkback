@@ -28,4 +28,5 @@ def test_matchday_offline(tmp_path):
         if item.must:
             assert all(s in players for s in item.subjects)
     fr = np.load(out / f"frames_{md.fixtures[0][0]}.npz")
+    assert "speed" in fr.files and (out / "snapshots" / md.fixtures[0][0]).exists()
     assert fr["pos"].shape[1:] == (22, 2) and np.all(np.diff(fr["t"]) == 100)

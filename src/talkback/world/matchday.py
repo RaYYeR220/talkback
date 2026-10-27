@@ -11,7 +11,6 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict
 
 from talkback.schemas.models import Event, Fact
-from talkback.sim.engine import simulate_match
 from talkback.world.key import build_answer_key, detect_traps
 from talkback.world.league import League, generate_league
 from talkback.world.season import SeasonState, backfill_season
@@ -54,34 +53,55 @@ def prepare_matchday(seed: int = 2026, matchdays_played: int = 11) -> Matchday:
                     fixtures=fixtures, seeds=seeds, lineups=lineups)
 
 
+SNAPSHOT_EVERY_MS = 30_000
+
+
 def _play(args) -> tuple[str, list[dict], dict[str, np.ndarray]]:
-    md_json, fid = args
+    md_json, fid, snap_dir = args
+    from talkback.gallery.snapshots import SnapshotStore
+    from talkback.sim.engine import MatchEngine
+
     md = Matchday.model_validate_json(md_json)
     _, h, a = next(f for f in md.fixtures if f[0] == fid)
     beats = [p.forced_beat for p in md.planted if p.forced_beat and p.storyline.fixture_id == fid]
-    events, frames = simulate_match(fid, md.league.club(h), md.league.club(a), seed=md.seeds[fid],
-                                    beats=beats, start_xi=tuple(md.lineups[fid]))
+    eng = MatchEngine(fid, md.league.club(h), md.league.club(a), md.seeds[fid], beats=beats,
+                      start_xi=tuple(md.lineups[fid]))
+    store = SnapshotStore(Path(snap_dir)) if snap_dir else None
+    events = list(eng._events)
+    frames = []
+    if store:
+        store.save(fid, eng.snapshot())
+    while not eng.done:
+        fr, evs = eng.step()
+        events.extend(evs)
+        if fr is not None:
+            frames.append(fr)
+        if store and eng.t % SNAPSHOT_EVERY_MS == 0:
+            store.save(fid, eng.snapshot())
     players = sorted({pid for fr in frames for pid in fr.ids})
     index = {pid: n for n, pid in enumerate(players)}
     n = len(frames)
-    pos = np.full((n, 22, 2), np.nan, np.float16)
+    pos = np.full((n, 22, 2), np.nan, np.float32)
+    speed = np.zeros((n, 22), np.float16)
     slot = np.full((n, 22), -1, np.int16)
     for i, fr in enumerate(frames):
         k = len(fr.ids)
         pos[i, :k] = fr.pos
+        speed[i, :k] = fr.speed
         slot[i, :k] = [index[p] for p in fr.ids]
     arrays = {"t": np.array([fr.t for fr in frames], np.int32), "ball": np.array([fr.ball for fr in frames], np.float16),
-              "pos": pos, "slot": slot, "players": np.array(players)}
+              "pos": pos, "speed": speed, "slot": slot, "players": np.array(players)}
     return fid, [e.model_dump(mode="json") for e in events], arrays
 
 
-def run_matchday_offline(md: Matchday, out_dir: Path, workers: int | None = None) -> Path:
+def run_matchday_offline(md: Matchday, out_dir: Path, workers: int | None = None, snapshots: bool = True) -> Path:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     md_json = md.model_dump_json()
     workers = workers or min(len(md.fixtures), max(1, (os.cpu_count() or 2) - 1))
     with ProcessPoolExecutor(max_workers=workers) as ex:
-        results = list(ex.map(_play, [(md_json, fid) for fid, _, _ in md.fixtures]))
+        results = list(ex.map(_play, [(md_json, fid, str(out / "snapshots") if snapshots else None)
+                                      for fid, _, _ in md.fixtures]))
     all_events: list[dict] = []
     by_match: dict[str, list[Event]] = {}
     for fid, events, arrays in results:
