@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 
 import numpy as np
@@ -42,6 +43,8 @@ AGENT_MIN_SALIENCE = 0.5
 SCAN_EVERY_MS = 5_000
 TABLE_EVERY_MS = 30_000
 HOLD_TIMEOUT_S = 25.0
+# A moment that has not cleared in this long is abandoned; its lines would be stale anyway.
+MOMENT_TIMEOUT_S = float(os.environ.get("TALKBACK_MOMENT_TIMEOUT_S", "180"))
 TERRITORIES = ("uk", "es", "mena", "kids", "br")
 DELAY_MS = {"uk": 0, "es": 0, "br": 0, "kids": 0, "mena": 120_000}
 
@@ -122,7 +125,8 @@ class MatchdayRunner:
         self.sim_t = 0
         self.last_table = -TABLE_EVERY_MS
         self.chances = None
-        self.stats = {"moments": 0, "workflows": 0, "cues": 0, "aired": 0, "held": 0, "killed": 0, "stale": 0}
+        self.stats = {"moments": 0, "workflows": 0, "cues": 0, "aired": 0, "held": 0, "killed": 0, "stale": 0,
+                      "timeouts": 0}
         self.deps = MomentDeps(world=self.world, boards={f: m.board for f, m in self.matches.items()},
                                lab=self.lab, gate=gate, desks=self.desks, pack_ctx=self.pack_ctx,
                                state_now=lambda f: self.matches[f].state(), client=client_for,
@@ -168,7 +172,7 @@ class MatchdayRunner:
             m.finished = True
             self._spawn(self._recap(m))
         for s in m.board.on_event(e):
-            self._story_moment(m, s.id, s.kind, e.t)
+            self._story_moment(m, s.id, s.kind, e.t, trigger=e.id)
         m.new_events.append(e)
         if e.type in (EventType.goal, EventType.card, EventType.shot, EventType.substitution, EventType.period_end):
             self.bc.publish("ticker", e.t, {"match_id": e.match_id, "type": e.type.value, "team": e.team_id,
@@ -177,8 +181,11 @@ class MatchdayRunner:
         if e.type in (EventType.goal, EventType.card, EventType.period_start, EventType.period_end):
             self._publish_score(m)
 
-    def _story_moment(self, m: MatchDesk, story_id: str, kind: str, t: int, pre_match: bool = False) -> None:
-        c = Candidate(id=f"C-{m.fixture_id}-story-{story_id}", match_id=m.fixture_id, t=t, kind="storyline",
+    def _story_moment(self, m: MatchDesk, story_id: str, kind: str, t: int, pre_match: bool = False,
+                      trigger: str | None = None) -> None:
+        # a story can come due again (every goal in a scoring race): each trigger is its own moment
+        suffix = f"@{trigger}" if trigger else ""
+        c = Candidate(id=f"C-{m.fixture_id}-story-{story_id}{suffix}", match_id=m.fixture_id, t=t, kind="storyline",
                       subject=story_id, event_ids=[], detail={"story_kind": kind})
         moment = Moment(id=c.id.replace("C-", "M-", 1), match_id=m.fixture_id, t=t, kind="storyline",
                         subject=story_id, salience=0.6 if pre_match else 0.8, rationale=f"story board: {kind}",
@@ -252,6 +259,11 @@ class MatchdayRunner:
             finally:
                 self.queue.task_done()
 
+    def _stop(self) -> None:
+        """Workers and side tasks never outlive the run, however it ends."""
+        for task in (*self.workers, *self.tasks):
+            task.cancel()
+
     def _busy(self) -> bool:
         return self.queue._unfinished_tasks > 0  # noqa: SLF001
 
@@ -276,8 +288,10 @@ class MatchdayRunner:
                                         "stage": "started", "kind": moment.kind})
         t0 = time.perf_counter()
         try:
-            run = await run_moment(self.deps, job)
+            run = await asyncio.wait_for(run_moment(self.deps, job), MOMENT_TIMEOUT_S)
         except Exception as exc:  # noqa: BLE001 - one bad moment never stops the gallery
+            if isinstance(exc, TimeoutError):
+                self.stats["timeouts"] += 1
             self.bc.publish("agent", m.t, {"moment_id": moment.id, "stage": "error", "error": type(exc).__name__})
             return
         self.bc.publish("agent", m.t, {"moment_id": moment.id, "match_id": moment.match_id, "stage": "done",
@@ -314,12 +328,21 @@ class MatchdayRunner:
     def _air(self, bundle) -> None:
         m = self.matches[bundle.moment.match_id]
         current = m.state().game_state_hash
+        job = bundle.job
+        # as a 1x broadcast sees it: queue, pipeline and producer time all count
+        air_t = job.age_now_t() if job is not None else None
+        latency = (int((time.monotonic() - job.wall0) * 1000) if job is not None
+                   else int(sum(bundle.timings.values())) if bundle.timings else 0)
         for cue in bundle.cues:
             self.stats["cues"] += 1
             for t, v in list(cue.verdicts.items()):
-                if v.verdict == Verdict.ON_AIR and cue.valid_state_hash != current:
-                    cue.verdicts[t] = v.model_copy(update={"verdict": Verdict.KILLED,
-                                                            "reasons": v.reasons + ["stale: state changed before air"]})
+                if v.verdict != Verdict.ON_AIR:
+                    continue
+                why = ("stale: state changed before air" if cue.valid_state_hash != current
+                       else "stale: too old at air" if air_t is not None and air_t > cue.created_t + cue.max_age_ms
+                       else None)
+                if why:
+                    cue.verdicts[t] = v.model_copy(update={"verdict": Verdict.KILLED, "reasons": v.reasons + [why]})
                     self.stats["stale"] += 1
             for t, v in cue.verdicts.items():
                 if v.verdict == Verdict.ON_AIR:
@@ -336,7 +359,6 @@ class MatchdayRunner:
                 for ref in claim.refs:
                     if ref in m.board.stories and any(v.verdict == Verdict.ON_AIR for v in cue.verdicts.values()):
                         m.board.surfaced(ref, cue.id)
-            latency = int(sum(bundle.timings.values())) if bundle.timings else 0
             self.bc.publish("cue", m.t, {**cue.model_dump(mode="json"), "moment_kind": bundle.moment.kind,
                                           "moment_t": bundle.moment.t, "latency_ms": latency,
                                           "status": bundle.status, "timings": bundle.timings,
@@ -443,34 +465,35 @@ class MatchdayRunner:
         self.bc.publish("run", 0, {"id": self.run_id, "status": "started", "speed": self.speed, "source": "eventhubs",
                                     "fixtures": [{"match_id": f, "home": h, "away": a, "home_name": self.names[h],
                                                   "away_name": self.names[a]} for f, h, a in self.world.fixtures]})
-        loop = asyncio.get_running_loop()
-        last_house = 0.0
-        async for item in items:
-            kind = item.get("kind")
-            if kind == "end":
-                break
-            if kind == "event":
-                e = Event.model_validate(item["event"])
-                self._dispatch(e)
-                self.sim_t = max(self.sim_t, e.t)
-            elif kind == "frame":
-                m = self.matches.get(item["match_id"])
-                if m is not None:
-                    m.desk.ingest_frame(_Frame(item["t"], tuple(item["ids"]), np.asarray(item["pos"], float),
-                                               np.asarray(item["speed"], float)))
-                    self.live_frames[item["match_id"]] = item
-            if loop.time() - last_house > 0.2:
-                last_house = loop.time()
-                self._scan()
-                self._table()
+        try:
+            loop = asyncio.get_running_loop()
+            last_house = 0.0
+            async for item in items:
+                kind = item.get("kind")
+                if kind == "end":
+                    break
+                if kind == "event":
+                    e = Event.model_validate(item["event"])
+                    self._dispatch(e)
+                    self.sim_t = max(self.sim_t, e.t)
+                elif kind == "frame":
+                    m = self.matches.get(item["match_id"])
+                    if m is not None:
+                        m.desk.ingest_frame(_Frame(item["t"], tuple(item["ids"]), np.asarray(item["pos"], float),
+                                                   np.asarray(item["speed"], float)))
+                        self.live_frames[item["match_id"]] = item
+                if loop.time() - last_house > 0.2:
+                    last_house = loop.time()
+                    self._scan()
+                    self._table()
+                    await self._expire_holds()
+                    self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
+                                    record=False)
+            while self.tasks or self.holds or not self.queue.empty() or self._busy():
                 await self._expire_holds()
-                self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
-                                record=False)
-        while self.tasks or self.holds or not self.queue.empty() or self._busy():
-            await self._expire_holds()
-            await asyncio.sleep(0.2)
-        for w in self.workers:
-            w.cancel()
+                await asyncio.sleep(0.2)
+        finally:
+            self._stop()
         self.bc.publish("run", self.sim_t, {"id": self.run_id, "status": "finished", "stats": self.stats})
         return dict(self.stats)
 
@@ -478,32 +501,34 @@ class MatchdayRunner:
         self.bc.publish("run", 0, {"id": self.run_id, "status": "started", "speed": self.speed,
                                     "fixtures": [{"match_id": f, "home": h, "away": a, "home_name": self.names[h],
                                                   "away_name": self.names[a]} for f, h, a in self.world.fixtures]})
-        loop = asyncio.get_running_loop()
-        wall0 = loop.time()
-        events = self.source.events()
-        nxt = next(events, None)
-        last_pub = -1
-        while nxt is not None or self.tasks or self.holds or not self.queue.empty() or self._busy():
-            target = int((loop.time() - wall0) * self.speed * 1000)
-            if until_ms is not None:
-                target = min(target, until_ms)
-            while nxt is not None and nxt.t <= target:
-                self._dispatch(nxt)
-                nxt = next(events, None)
-            self.sim_t = max(self.sim_t, target if nxt is not None else self.sim_t)
-            self._frames_to(self.sim_t)
-            self._scan()
-            self._table()
-            await self._expire_holds()
-            if self.sim_t // 1000 != last_pub:
-                last_pub = self.sim_t // 1000
-                self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
-                                record=False)
-            if until_ms is not None and target >= until_ms and not self.tasks and self.queue.empty()                     and not self._busy():
-                break
-            await asyncio.sleep(0.05)
-        for w in self.workers:
-            w.cancel()
+        try:
+            loop = asyncio.get_running_loop()
+            wall0 = loop.time()
+            events = self.source.events()
+            nxt = next(events, None)
+            last_pub = -1
+            while nxt is not None or self.tasks or self.holds or not self.queue.empty() or self._busy():
+                target = int((loop.time() - wall0) * self.speed * 1000)
+                if until_ms is not None:
+                    target = min(target, until_ms)
+                while nxt is not None and nxt.t <= target:
+                    self._dispatch(nxt)
+                    nxt = next(events, None)
+                self.sim_t = max(self.sim_t, target if nxt is not None else self.sim_t)
+                self._frames_to(self.sim_t)
+                self._scan()
+                self._table()
+                await self._expire_holds()
+                if self.sim_t // 1000 != last_pub:
+                    last_pub = self.sim_t // 1000
+                    self.bc.publish("clock", self.sim_t, {"stats": dict(self.stats), "holds": list(self.holds)},
+                                    record=False)
+                if (until_ms is not None and target >= until_ms and not self.tasks and self.queue.empty()
+                        and not self._busy()):
+                    break
+                await asyncio.sleep(0.05)
+        finally:
+            self._stop()
         self.bc.publish("run", self.sim_t, {"id": self.run_id, "status": "finished", "stats": self.stats})
         return dict(self.stats)
 

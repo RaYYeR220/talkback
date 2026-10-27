@@ -91,7 +91,10 @@ async def localise_many(cues: list[Cue], desks: list[TerritoryDesk]) -> list[dic
                 out[i][d.territory] = (c.text, d.lang)
             return
         if len(cues) == 1:
-            got = await d.localise(cues[0])
+            try:
+                got = await d.localise(cues[0])
+            except Exception:  # noqa: BLE001
+                return
             if got is not None:
                 out[0][d.territory] = got
             return

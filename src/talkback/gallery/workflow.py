@@ -93,6 +93,7 @@ class CueBundle:
     status: dict[str, str]
     timings: dict[str, int] = field(default_factory=dict)
     evidence: list[Fact] = field(default_factory=list)
+    job: MomentJob | None = None
 
 
 @dataclass
@@ -225,20 +226,33 @@ class ClearanceExec(Executor):
     async def clear(self, d: Drafts, ctx: WorkflowContext[None, CueBundle]) -> None:
         t0 = time.perf_counter()
         match_id = d.job.moment.match_id
-        ctx_checks = CheckContext(
-            facts={f.id: f for f in d.job.facts}, experiments={x.id: x for x in d.lab.experiments},
-            storylines={s.id: s for s in d.stories}, state=self.deps.state_now(match_id),
-            now_t=d.job.age_now_t(), lang="en")
-        batch = await localise_many(d.cues, self.deps.desks)
+
+        def checks() -> CheckContext:
+            # built right before each evaluation, so localising and revising count towards a line's age
+            return CheckContext(
+                facts={f.id: f for f in d.job.facts}, experiments={x.id: x for x in d.lab.experiments},
+                storylines={s.id: s for s in d.stories}, state=self.deps.state_now(match_id),
+                now_t=d.job.age_now_t(), lang="en")
+
+        try:
+            batch = await localise_many(d.cues, self.deps.desks)
+        except Exception:  # noqa: BLE001 - without translations each desk falls back to the source or refuses
+            batch = [{} for _ in d.cues]
         for n, cue in enumerate(d.cues):
-            await self.deps.gate.evaluate(cue, ctx_checks, batch[n], self.deps.pack_ctx(match_id))
+            await self.deps.gate.evaluate(cue, checks(), batch[n], self.deps.pack_ctx(match_id))
             if _fixable(cue):
                 # one revision: the writer sees exactly why Clearance refused and may try once more
-                second = await revise_cue(make_writer(self.deps.client("fast")), cue, cue.universal_reasons,
-                                          d.job.moment, d.job.facts, d.lab, d.stories, d.job.names)
+                try:
+                    second = await revise_cue(make_writer(self.deps.client("fast")), cue, cue.universal_reasons,
+                                              d.job.moment, d.job.facts, d.lab, d.stories, d.job.names)
+                except Exception:  # noqa: BLE001 - the first refusal stands
+                    second = None
                 if second is not None:
-                    localized = await localise_all(second, self.deps.desks)
-                    await self.deps.gate.evaluate(second, ctx_checks, localized, self.deps.pack_ctx(match_id))
+                    try:
+                        localized = await localise_all(second, self.deps.desks)
+                    except Exception:  # noqa: BLE001
+                        localized = {}
+                    await self.deps.gate.evaluate(second, checks(), localized, self.deps.pack_ctx(match_id))
                     second.data = {**second.data, "revision_of": cue.id,
                                    "first_refusal": "; ".join(cue.universal_reasons)[:300], "original_text": cue.text}
                     d.cues[n] = second
@@ -286,7 +300,7 @@ def _bundle(d: Drafts) -> CueBundle:
     cited = {r for c in d.cues for cl in c.claims for r in cl.refs}
     evidence = [f for f in d.job.facts if f.id in cited]
     return CueBundle(moment=d.job.moment, cues=d.cues, stories=d.stories, lab=d.lab, status=d.status,
-                     timings=d.timings, evidence=evidence)
+                     timings=d.timings, evidence=evidence, job=d.job)
 
 
 def build_moment_workflow(deps: MomentDeps):

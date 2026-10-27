@@ -153,3 +153,39 @@ def test_remote_agents_are_told_the_run_and_failures_are_marked(env):
     assert all(p.startswith("Run: md-2026\n") for _, p in remote.prompts)
     assert run.bundle.status["archivist"].startswith("degraded: a2a")
     assert run.bundle.status["lab"].startswith("degraded: a2a")
+
+
+def test_a_failing_territory_desk_does_not_lose_the_moment(env, monkeypatch):
+    import talkback.gallery.workflow as wf
+
+    deps, job = env
+
+    async def desk_down(*args, **kwargs):
+        raise ConnectionError("desk down")
+
+    monkeypatch.setattr(wf, "localise_many", desk_down)
+    monkeypatch.setattr(wf, "localise_all", desk_down)
+    run = asyncio.run(run_moment(deps, job))
+    if run.hold is not None:
+        run = asyncio.run(answer_hold(run, {h["cue_id"]: "reject" for h in run.hold.holds}))
+    assert run.bundle is not None and run.bundle.cues
+    assert all(c.verdicts["es"].verdict is Verdict.KILLED for c in run.bundle.cues)
+
+
+def test_one_desk_failing_leaves_the_others_translated():
+    from talkback.gallery.agents.desks import localise_many
+    from talkback.schemas.models import Cue
+
+    class Desk:
+        def __init__(self, territory, fail):
+            self.territory, self.lang, self.agent, self.fail = territory, territory, object(), fail
+
+        async def localise(self, cue):
+            if self.fail:
+                raise ConnectionError("desk down")
+            return f"[{self.territory}] {cue.text}", self.lang
+
+    c = Cue(id="Q", match_id="F", audience="analyst", text="A goal.", template="stat_card", valid_state_hash="h",
+            max_age_ms=1, created_t=0)
+    out = asyncio.run(localise_many([c], [Desk("es", False), Desk("mena", True)]))
+    assert out == [{"es": ("[es] A goal.", "es")}]

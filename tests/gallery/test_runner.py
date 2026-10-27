@@ -85,3 +85,104 @@ def test_runner_from_a_live_feed(run_dir, monkeypatch):
     stats = asyncio.run(runner.run_feed(feed()))
     assert stats["workflows"] >= 5 and stats["cues"] > 0
     assert runner.live_frames and all(len(f["ids"]) >= 20 for f in runner.live_frames.values())
+
+
+def _quiet_runner(run_dir, monkeypatch):
+    monkeypatch.setenv("TALKBACK_ENV", "dev")
+    bc = Broadcaster()
+    published: list[tuple[str, dict]] = []
+    monkeypatch.setattr(bc, "publish", lambda kind, t, data, record=True: published.append((kind, data)))
+    runner = MatchdayRunner(run_dir, Gate(load_packs(PACKS_DIR), LocalDevSafety()),
+                            lambda tier: ScriptedClient(script), bc, lab_n=8)
+    return runner, published
+
+
+def test_a_hung_moment_is_abandoned(run_dir, monkeypatch):
+    from types import SimpleNamespace
+
+    import talkback.gallery.runner as runner_mod
+
+    runner, published = _quiet_runner(run_dir, monkeypatch)
+
+    async def hang(deps, job):
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(runner_mod, "MOMENT_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(runner_mod, "run_moment", hang)
+    job = SimpleNamespace(moment=SimpleNamespace(id="M-x", match_id=runner.world.fixtures[0][0], kind="goal"))
+    asyncio.run(asyncio.wait_for(runner._workflow(job), 5))
+    assert runner.stats["timeouts"] == 1
+    assert ("agent", {"moment_id": "M-x", "stage": "error", "error": "TimeoutError"}) in published
+
+
+def test_workers_stop_when_the_feed_fails(run_dir, monkeypatch):
+    runner, _ = _quiet_runner(run_dir, monkeypatch)
+
+    async def go():
+        runner.workers = [asyncio.create_task(asyncio.sleep(3600))]
+
+        async def feed():
+            yield {"kind": "frame", "match_id": "nope"}
+            raise ConnectionError("event hub gone")
+
+        with pytest.raises(ConnectionError):
+            await runner.run_feed(feed())
+        await asyncio.sleep(0)
+        return [w.cancelled() for w in runner.workers]  # checked inside the loop, before asyncio.run cleans up
+
+    assert asyncio.run(go()) == [True]
+
+
+def test_retriggered_story_gets_a_new_moment(run_dir, monkeypatch):
+    runner, _ = _quiet_runner(run_dir, monkeypatch)
+    m = runner.matches[runner.world.fixtures[0][0]]
+
+    async def go():
+        runner._story_moment(m, "S-1", "golden_boot", 600_000, trigger="E-1")
+        runner._story_moment(m, "S-1", "golden_boot", 1_800_000, trigger="E-2")
+        ids = [job.moment.id for *_, job in runner.queue._queue]  # noqa: SLF001
+        runner._stop()
+        return ids
+
+    ids = asyncio.run(go())
+    assert len(ids) == len(set(ids)) == 2
+
+
+def _bundle_aged(runner, age_s: float):
+    import time as _time
+
+    from talkback.gallery.agents.lab import LabResult
+    from talkback.gallery.spotter import Moment
+    from talkback.gallery.workflow import CueBundle, MomentJob
+    from talkback.schemas.models import Cue, TerritoryVerdict, Verdict
+
+    fid = runner.world.fixtures[0][0]
+    state = runner.matches[fid].state()
+    moment = Moment(id="M-a", match_id=fid, t=0, kind="goal", subject=None, salience=0.9, rationale="",
+                    event_ids=[])
+    cue = Cue(id="Q-a", match_id=fid, audience="analyst", text="A goal.", template="stat_card",
+              valid_state_hash=state.game_state_hash, max_age_ms=90_000, created_t=0,
+              verdicts={"uk": TerritoryVerdict(territory="uk", verdict=Verdict.ON_AIR, text="A goal.")})
+    job = MomentJob(moment=moment, facts=[], names={}, state=state, now_t=0, wall0=_time.monotonic() - age_s)
+    return CueBundle(moment=moment, cues=[cue], stories=[], status={}, job=job,
+                     lab=LabResult(experiments=[], conclusion="", supported=False)), cue
+
+
+def test_line_too_old_at_air_is_killed(run_dir, monkeypatch):
+    from talkback.schemas.models import Verdict
+
+    runner, published = _quiet_runner(run_dir, monkeypatch)
+    bundle, cue = _bundle_aged(runner, 100)
+    runner._air(bundle)
+    assert cue.verdicts["uk"].verdict is Verdict.KILLED
+    assert "stale: too old at air" in cue.verdicts["uk"].reasons
+    assert not [d for k, d in published if k == "aired"]
+
+
+def test_latency_is_measured_from_spotting_to_air(run_dir, monkeypatch):
+    runner, published = _quiet_runner(run_dir, monkeypatch)
+    bundle, _ = _bundle_aged(runner, 10)
+    runner._air(bundle)
+    (cue_msg,) = [d for k, d in published if k == "cue"]
+    assert 10_000 <= cue_msg["latency_ms"] < 15_000
+    assert [d for k, d in published if k == "aired"]
