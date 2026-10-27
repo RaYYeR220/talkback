@@ -1,0 +1,162 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-counterfactual-card",
+  "version": "1.0.0",
+  "name": "Talkback Counterfactual Card",
+  "description": "A metric as played against the simulated 'if not', with the effect and its 95% interval.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "metric": {
+        "type": "string",
+        "label": "Metric",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "Win probability · Calder Vale"
+      },
+      "title": {
+        "type": "string",
+        "label": "Title",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "If the 38′ red card had not happened"
+      },
+      "asPlayedLabel": {
+        "type": "string",
+        "label": "As played label",
+        "gddType": "single-line",
+        "order": 3,
+        "default": "As played"
+      },
+      "ifNotLabel": {
+        "type": "string",
+        "label": "If not label",
+        "gddType": "single-line",
+        "order": 4,
+        "default": "If not"
+      },
+      "asPlayed": {
+        "type": "number",
+        "label": "As played",
+        "order": 5,
+        "default": 41
+      },
+      "ifNot": {
+        "type": "number",
+        "label": "If not",
+        "order": 6,
+        "default": 63
+      },
+      "max": {
+        "type": "number",
+        "label": "Scale maximum",
+        "order": 7,
+        "default": 100,
+        "exclusiveMinimum": 0
+      },
+      "unit": {
+        "type": "string",
+        "label": "Unit",
+        "gddType": "single-line",
+        "order": 8,
+        "default": "%"
+      },
+      "decimals": {
+        "type": "integer",
+        "label": "Decimals",
+        "order": 9,
+        "default": 0,
+        "minimum": 0,
+        "maximum": 3
+      },
+      "effect": {
+        "type": "string",
+        "label": "Effect",
+        "gddType": "single-line",
+        "order": 10,
+        "default": "−22 pts"
+      },
+      "interval": {
+        "type": "string",
+        "label": "Interval",
+        "gddType": "single-line",
+        "order": 11,
+        "default": "95% interval −34 to −9"
+      },
+      "caption": {
+        "type": "string",
+        "label": "Caption",
+        "gddType": "multi-line",
+        "order": 12,
+        "default": ""
+      },
+      "evidence": {
+        "type": "string",
+        "label": "Evidence",
+        "gddType": "single-line",
+        "order": 13,
+        "default": "400 paired rollouts"
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}

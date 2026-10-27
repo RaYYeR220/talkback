@@ -1,0 +1,243 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-scorebug",
+  "version": "1.0.0",
+  "name": "Talkback Scorebug",
+  "description": "Score, clock and an optional AS IT STANDS flag for one match, with a ticker that cycles the other matches of the round.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "matchId": {
+        "type": "string",
+        "label": "Match id",
+        "gddType": "single-line",
+        "order": 0,
+        "default": "",
+        "hidden": true
+      },
+      "homeShort": {
+        "type": "string",
+        "label": "Home",
+        "gddType": "single-line",
+        "order": 1,
+        "default": "CAL",
+        "maxLength": 4
+      },
+      "awayShort": {
+        "type": "string",
+        "label": "Away",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "ASH",
+        "maxLength": 4
+      },
+      "homeScore": {
+        "type": "integer",
+        "label": "Home score",
+        "order": 3,
+        "default": 0,
+        "minimum": 0
+      },
+      "awayScore": {
+        "type": "integer",
+        "label": "Away score",
+        "order": 4,
+        "default": 0,
+        "minimum": 0
+      },
+      "minute": {
+        "type": "integer",
+        "label": "Minute",
+        "order": 5,
+        "default": 0,
+        "minimum": 0,
+        "maximum": 130
+      },
+      "addedTime": {
+        "type": "integer",
+        "label": "Added time",
+        "order": 6,
+        "description": "Shown as 45+2.",
+        "default": 0,
+        "minimum": 0
+      },
+      "status": {
+        "type": "string",
+        "label": "Status",
+        "gddType": "single-line",
+        "order": 7,
+        "description": "Replaces the clock when set, e.g. HT or FT.",
+        "default": "",
+        "maxLength": 6
+      },
+      "homeColor": {
+        "type": "string",
+        "label": "Home colour",
+        "gddType": "color-rrggbb",
+        "order": 8,
+        "pattern": "^#[0-9a-f]{6}$",
+        "default": "#7a1f2b"
+      },
+      "awayColor": {
+        "type": "string",
+        "label": "Away colour",
+        "gddType": "color-rrggbb",
+        "order": 9,
+        "pattern": "^#[0-9a-f]{6}$",
+        "default": "#1f4e9c"
+      },
+      "asItStands": {
+        "type": "boolean",
+        "label": "As it stands",
+        "order": 10,
+        "default": false,
+        "description": "Flag the score as feeding the live table."
+      },
+      "asItStandsLabel": {
+        "type": "string",
+        "label": "As it stands label",
+        "gddType": "single-line",
+        "order": 11,
+        "default": "AS IT STANDS"
+      },
+      "elsewhere": {
+        "type": "array",
+        "label": "Elsewhere",
+        "order": 12,
+        "default": [],
+        "description": "Other matches of the round, cycled under the bug.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "homeShort": {
+              "type": "string",
+              "label": "Home",
+              "gddType": "single-line",
+              "order": 1,
+              "maxLength": 4
+            },
+            "awayShort": {
+              "type": "string",
+              "label": "Away",
+              "gddType": "single-line",
+              "order": 2,
+              "maxLength": 4
+            },
+            "homeScore": {
+              "type": "integer",
+              "label": "Home score",
+              "order": 3,
+              "minimum": 0
+            },
+            "awayScore": {
+              "type": "integer",
+              "label": "Away score",
+              "order": 4,
+              "minimum": 0
+            },
+            "minute": {
+              "type": "integer",
+              "label": "Minute",
+              "order": 5,
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "customActions": [
+    {
+      "id": "flash",
+      "name": "Flash score",
+      "description": "Highlight one side's score, e.g. on a goal.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "side": {
+            "type": "string",
+            "label": "Side",
+            "gddType": "select",
+            "enum": [
+              "home",
+              "away"
+            ],
+            "gddOptions": {
+              "labels": {
+                "home": "Home",
+                "away": "Away"
+              }
+            },
+            "default": "home",
+            "order": 1
+          }
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    },
+    {
+      "type": "customAction",
+      "customActionId": "flash",
+      "duration": 900
+    }
+  ]
+}

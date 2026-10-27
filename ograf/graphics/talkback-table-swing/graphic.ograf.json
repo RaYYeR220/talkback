@@ -1,0 +1,189 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "talkback-table-swing",
+  "version": "1.0.0",
+  "name": "Talkback Table Swing",
+  "description": "A club's live-table chance before and after, and the match that moved it.",
+  "author": {
+    "name": "Talkback"
+  },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "asItStands": {
+        "type": "boolean",
+        "label": "As it stands",
+        "order": 1,
+        "default": true
+      },
+      "asItStandsLabel": {
+        "type": "string",
+        "label": "As it stands label",
+        "gddType": "single-line",
+        "order": 2,
+        "default": "AS IT STANDS"
+      },
+      "club": {
+        "type": "string",
+        "label": "Club",
+        "gddType": "single-line",
+        "order": 3,
+        "default": "Calder Vale"
+      },
+      "clubColor": {
+        "type": "string",
+        "label": "Club colour",
+        "gddType": "color-rrggbb",
+        "order": 4,
+        "pattern": "^#[0-9a-f]{6}$",
+        "default": "#7a1f2b"
+      },
+      "metric": {
+        "type": "string",
+        "label": "Metric",
+        "gddType": "single-line",
+        "order": 5,
+        "default": "Relegation chance"
+      },
+      "before": {
+        "type": "number",
+        "label": "Before",
+        "order": 6,
+        "default": 31
+      },
+      "after": {
+        "type": "number",
+        "label": "After",
+        "order": 7,
+        "default": 54
+      },
+      "max": {
+        "type": "number",
+        "label": "Scale maximum",
+        "order": 8,
+        "default": 100,
+        "exclusiveMinimum": 0
+      },
+      "unit": {
+        "type": "string",
+        "label": "Unit",
+        "gddType": "single-line",
+        "order": 9,
+        "default": "%"
+      },
+      "deltaUnit": {
+        "type": "string",
+        "label": "Change unit",
+        "gddType": "single-line",
+        "order": 10,
+        "default": " pts"
+      },
+      "decimals": {
+        "type": "integer",
+        "label": "Decimals",
+        "order": 11,
+        "default": 0,
+        "minimum": 0,
+        "maximum": 3
+      },
+      "tone": {
+        "type": "string",
+        "label": "Tone",
+        "gddType": "select",
+        "enum": [
+          "good",
+          "bad",
+          "neutral"
+        ],
+        "gddOptions": {
+          "labels": {
+            "good": "Good news",
+            "bad": "Bad news",
+            "neutral": "Neutral"
+          }
+        },
+        "default": "bad",
+        "order": 12,
+        "description": "Colour of the change, from the club's point of view."
+      },
+      "causedByLabel": {
+        "type": "string",
+        "label": "Caused by label",
+        "gddType": "single-line",
+        "order": 13,
+        "default": "Swing from"
+      },
+      "causedBy": {
+        "type": "string",
+        "label": "Caused by",
+        "gddType": "single-line",
+        "order": 14,
+        "default": "Fenmoor Harriers 2–1 Westmarsh Town · 67′"
+      },
+      "caption": {
+        "type": "string",
+        "label": "Caption",
+        "gddType": "multi-line",
+        "order": 15,
+        "default": ""
+      },
+      "dir": {
+        "type": "string",
+        "label": "Text direction",
+        "gddType": "select",
+        "enum": [
+          "ltr",
+          "rtl"
+        ],
+        "gddOptions": {
+          "labels": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+          }
+        },
+        "default": "ltr",
+        "order": 90,
+        "description": "rtl mirrors the layout for right-to-left feeds such as Arabic."
+      },
+      "lang": {
+        "type": "string",
+        "label": "Language",
+        "gddType": "single-line",
+        "order": 91,
+        "description": "BCP 47 language tag of the text, e.g. en, es, ar.",
+        "default": "",
+        "hidden": true
+      }
+    }
+  },
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      }
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 420
+    },
+    {
+      "type": "updateAction",
+      "duration": -1
+    },
+    {
+      "type": "stopAction",
+      "duration": 260
+    }
+  ]
+}
