@@ -36,7 +36,7 @@ _PCT_AFTER = re.compile(
     re.IGNORECASE)
 _PCT_BEFORE = re.compile(r"%\s*$")
 _MINUTE_AFTER = re.compile(
-    r"\s?['’′](?![\w'’′])|(?:st|nd|rd|th|º|°)?\s*(?:minute|minuto|min)\b", re.IGNORECASE)
+    r"\s?['’′](?![\w'’′])|(?:st|nd|rd|th|º|°)?\s*(?:minutes?|minutos?|min)\b", re.IGNORECASE)
 _MINUTE_BEFORE = re.compile(r"(?<!\w)(?:minute|minuto|min\.?|الدقيقة|دقيقة)\s*$", re.IGNORECASE)
 _ORDINAL_AFTER = re.compile(r"(?:st|nd|rd|th)(?!\w)|\.?[ºª°]", re.IGNORECASE)
 
@@ -65,20 +65,13 @@ _WORD = re.compile(r"[^\W\d_]+(?:-[^\W\d_]+)?")
 _COMPOUND_EN = re.compile(rf"({'|'.join(_TENS_EN)})-(one|{'|'.join(_UNITS_EN)})")
 
 
-_NOT_NUMBERS = frozenset({"fifty-fifty"})
-
-
 def _word_value(word: str, lang: str) -> int | None:
+    # A hyphenated word counts only as a whole number word ("twenty-one", "two-hundredth"): "six-pointer",
+    # "one-two" and "fifty-fifty" are football, not numbers.
     w = word.lower()
-    if w in _NOT_NUMBERS:
-        return None
     if lang == "en" and (m := _COMPOUND_EN.fullmatch(w)):
         return _TENS_EN[m.group(1)] + (1 if m.group(2) == "one" else _UNITS_EN.index(m.group(2)) + 2)
-    words = WORDS.get(lang, {})
-    if w in words:
-        return words[w]
-    head = w.split("-")[0]
-    return words.get(head) if "-" in w else None
+    return WORDS.get(lang, {}).get(w)
 
 
 def number_words(text: str, lang: str) -> list[tuple[int, float, str]]:

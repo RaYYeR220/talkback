@@ -10,7 +10,7 @@ from talkback.clearance.safety import LocalDevSafety
 from talkback.clearance.sensitive import sensitive_topics
 from talkback.schemas.models import MatchState, Verdict
 from tests.clearance.fixtures import (
-    NOW, STATE_HASH, XG_CLAIM, claim, ctx, cue, experiment, fact,
+    FACTS, NOW, STATE_HASH, XG_CLAIM, claim, ctx, cue, experiment, fact,
 )
 
 
@@ -229,3 +229,32 @@ def test_spelled_out_number_without_a_claim_is_killed():
 def test_number_words_do_not_misread_common_phrases():
     assert extract_numbers("91 por ciento de sus pases", "es") == [91]
     assert extract_numbers("a fifty-fifty ball", "en") == []
+
+
+def _numbers_only(reasons):
+    return [r for r in reasons if r.startswith("number:")]
+
+
+def test_a_rounded_large_value_matches_its_claim():
+    speed = fact("F_speed", "C01-P07", 122.7, metric="event.shot_speed_kmh", unit="km/h")
+    c = cue("Mensah hit it at 123 km/h", [claim("123 km/h", subject="C01-P07", refs=["F_speed"], value=122.7)])
+    _, reasons = universal_checks(c, ctx(facts={**FACTS, "F_speed": speed}))
+    assert _numbers_only(reasons) == []
+    small = cue("Ashford have 1 xG", [claim("1 xG", subject="C01", refs=["F_xg_away"], value=1.4)])
+    assert _numbers_only(universal_checks(small, ctx())[1])  # rounding 1.4 to 1 is not allowed
+
+
+def test_football_compounds_are_not_number_words():
+    assert extract_numbers("a relegation six-pointer", "en") == []
+    assert extract_numbers("a one-two on the edge", "en") == []
+
+
+@pytest.mark.parametrize("text,moment_t,ok", [
+    ("At 2 minutes, Mensah faced his old club", 90_000, True),    # a line about a moment at 2'
+    ("Mensah saved it in the 1st minute", 30_000, True),
+    ("Mensah saved it in the 1st minute", NOW - 5_000, False),    # nothing at 70' backs a 1st-minute save
+    ("Mensah will score in the 85th minute", NOW - 5_000, False),
+])
+def test_minute_marks_point_at_the_lines_moment_or_later_not_ahead(text, moment_t, ok):
+    assert (_numbers_only(universal_checks(cue(text, created_t=moment_t, max_age_ms=10_000_000), ctx())[1])
+            == []) is ok

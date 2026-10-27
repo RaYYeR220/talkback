@@ -60,9 +60,18 @@ def _shown_minutes(state: MatchState) -> tuple[int, int]:
     return elapsed - 4, elapsed
 
 
-def _minute_ok(tok: NumberToken, state: MatchState) -> bool:
+def _rounded(tok: NumberToken, value: float) -> bool:
+    """A whole number written for a large value it rounds to ("123 km/h" for 122.7). Small values must be
+    written as they are: rounding 1.4 xG to 1 changes what the line says."""
+    return not tok.decimals and not tok.percent and abs(value) >= 10 and round(value) == tok.value
+
+
+def _minute_ok(tok: NumberToken, state: MatchState, created_t: int) -> bool:
+    """A minute mark is the minute of the line's own moment or later, never ahead of the clock. An earlier
+    minute ("pressing since the 12th minute" at 70') is a claim nothing here backs."""
     lo, hi = _shown_minutes(state)
-    return tok.minute and lo - 2 <= tok.value <= hi + 2
+    own = created_t // 60_000 + 1
+    return tok.minute and min(own, lo) - 2 <= tok.value <= hi + 2
 
 
 def _story_values(story: Storyline) -> list[float]:
@@ -144,11 +153,11 @@ def check_numbers(cue: Cue, ctx: CheckContext) -> list[str]:
     shown: dict[int, NumberToken] = {}
     reasons: list[str] = []
     for tok in extract_tokens(cue.text, ctx.lang):
-        hits = [i for i, c in enumerate(claims)
-                if c.value is not None and _close(tok.value, c.value, tok.tolerance)]
+        hits = [i for i, c in enumerate(claims) if c.value is not None
+                and (_close(tok.value, c.value, tok.tolerance) or _rounded(tok, c.value))]
         for i in hits:
             shown.setdefault(i, tok)
-        if not hits and not _minute_ok(tok, ctx.state) and not _storyline_count(tok, cue, ctx):
+        if not hits and not _minute_ok(tok, ctx.state, cue.created_t) and not _storyline_count(tok, cue, ctx):
             reasons.append(f"number: {tok.label()} has no matching claim")
     for i, claim in enumerate(claims):
         reasons += _verify(claim, shown.get(i), ctx)
