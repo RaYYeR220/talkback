@@ -1,0 +1,25 @@
+territory: uk
+name: UK-style
+langs: [en]
+delay_minutes: 0
+minors_safe: false
+disclaimer: "Illustrative editorial template — not legal advice."
+rules:
+  - id: gambling
+    type: block_terms
+    action: KILLED
+    rationale: Gambling references stay off the sports output.
+    terms:
+      en: [bet, bets, betting, odds, bookies, bookmaker, bookmakers, accumulator, acca, punt,
+           punters, wager, wagers, flutter, in-play, price boost]
+  - id: impartiality
+    type: impartiality
+    rationale: Commentary stays impartial; no loaded verdicts on clubs, players or officials.
+    terms:
+      en: [robbed, daylight robbery, disgrace, disgraceful, cheat, cheats, cheating, scandal,
+           scandalous, shambles, bottled it, bottlers, corrupt, match-fixing]
+  - id: sensitive
+    type: hold_topics
+    action: HOLD_FOR_PRODUCER
+    rationale: Injury, discipline and refereeing lines go to the producer first.
+    topics: [injury, discipline, referee]

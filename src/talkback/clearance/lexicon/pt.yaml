@@ -1,0 +1,72 @@
+# Níveis de força: 1 cauteloso, 2 firme, 3 absoluto. O nível 0 é todo o resto.
+lang: pt
+levels:
+  1:
+    - ligeiramente
+    - levemente
+    - um pouco mais
+    - um pouco melhor
+    - começa a
+    - começam a
+    - começando a
+    - primeiros sinais
+    - sinais de
+    - aos poucos
+    - timidamente
+    - discretamente
+    - ensaia
+    - esboça
+  2:
+    - no comando
+    - claramente
+    - melhor em campo
+    - superiores
+    - mandando no jogo
+    - manda no jogo
+    - encurralado
+    - encurralados
+    - tem o controle
+    - controlando o jogo
+    - controla o jogo
+    - com autoridade
+    - melhor time
+    - melhor equipe
+  3:
+    - dominante
+    - dominantes
+    - dominando
+    - dominam
+    - domínio absoluto
+    - domínio total
+    - controle total
+    - implacável
+    - implacáveis
+    - sempre
+    - toda vez
+    - imparável
+    - imparáveis
+    - completamente
+    - nunca
+    - jamais
+    - aula de futebol
+    - avassalador
+    - avassaladores
+    - esmagador
+    - esmagadores
+    - massacre
+causal:
+  - porque
+  - graças a
+  - devido a
+  - por causa de
+  - forçou
+  - forçaram
+  - custou
+  - custou caro
+  - deu a vitória
+  - decidiu o jogo
+  - resultou em
+  - causou
+  - em consequência de
+  - ganhou o jogo
+  - fez a diferença

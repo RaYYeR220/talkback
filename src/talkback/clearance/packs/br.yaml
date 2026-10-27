@@ -1,0 +1,14 @@
+territory: br
+name: Brazil-style
+langs: [pt]
+delay_minutes: 0
+minors_safe: false
+disclaimer: "Illustrative editorial template — not legal advice."
+rules:
+  - id: gambling
+    type: block_terms
+    action: KILLED
+    rationale: Gambling references are blocked.
+    terms:
+      pt: [aposta, apostas, apostar, apostador, apostadores, odds, bet, bets, casa de apostas,
+           casas de apostas, bolão, palpites de apostas]

@@ -1,0 +1,23 @@
+territory: mena
+name: MENA delayed broadcast
+langs: [ar]
+delay_minutes: 2
+minors_safe: false
+disclaimer: "Illustrative editorial template — not legal advice."
+rules:
+  - id: embargo
+    type: results_embargo
+    rationale: The feed runs two minutes behind live, so other matches' results inside that window are spoilers.
+    delay_minutes: 2
+  - id: gambling
+    type: block_terms
+    action: KILLED
+    rationale: Gambling references are blocked.
+    terms:
+      ar: [مراهنة, مراهنات, رهان, رهانات, قمار, مقامرة, يراهن, يراهنون, مكاتب المراهنات,
+           شركات المراهنات, نسب المراهنة, كازينو]
+  - id: sensitive
+    type: hold_topics
+    action: HOLD_FOR_PRODUCER
+    rationale: Injury, discipline and refereeing lines go to the producer first.
+    topics: [injury, discipline, referee]

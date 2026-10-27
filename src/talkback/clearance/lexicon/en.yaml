@@ -1,0 +1,69 @@
+# Strength levels: 1 hedged, 2 firm, 3 absolute. Level 0 is everything else.
+lang: en
+levels:
+  1:
+    - edging
+    - edging it
+    - early signs
+    - starting to
+    - beginning to
+    - slightly
+    - a touch more
+    - a little more
+    - a bit more
+    - marginally
+    - shading it
+    - tentatively
+    - signs of
+    - gradually
+  2:
+    - controlling
+    - in control
+    - on top
+    - well on top
+    - clearly
+    - in charge
+    - pinned back
+    - the better side
+    - the better team
+    - on the front foot
+    - in command
+    - running the game
+    - bossing
+    - the upper hand
+  3:
+    - dominant
+    - dominating
+    - dominated
+    - domination
+    - relentless
+    - always
+    - every time
+    - total control
+    - complete control
+    - unstoppable
+    - completely
+    - never
+    - masterclass
+    - utterly
+    - overwhelming
+    - ruthless
+    - all over them
+causal:
+  - because
+  - forced
+  - cost them
+  - cost him
+  - won them the game
+  - won them the match
+  - won the game
+  - won the match
+  - thanks to
+  - led to
+  - due to
+  - as a result of
+  - caused
+  - resulted in
+  - decided the game
+  - owing to
+  - made the difference

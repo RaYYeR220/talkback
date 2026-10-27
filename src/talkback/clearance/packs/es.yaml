@@ -1,0 +1,19 @@
+territory: es
+name: Spain-style
+langs: [es]
+delay_minutes: 0
+minors_safe: false
+disclaimer: "Illustrative editorial template — not legal advice."
+rules:
+  - id: gambling
+    type: block_terms
+    action: KILLED
+    rationale: Strict ban on gambling references in sports output.
+    terms:
+      es: [apuesta, apuestas, apostar, apostador, apostadores, cuota, cuotas, casa de apuestas,
+           casas de apuestas, quiniela, momios, pronósticos deportivos]
+  - id: sensitive
+    type: hold_topics
+    action: HOLD_FOR_PRODUCER
+    rationale: Injury, discipline and refereeing lines go to the producer first.
+    topics: [injury, discipline, referee]
