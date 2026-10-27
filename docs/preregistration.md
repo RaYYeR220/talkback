@@ -53,3 +53,18 @@ out faster than real time is scored as if it had aired live.
 
 We will publish the numbers whichever way they fall, including any metric where the single model is level
 with or better than Talkback.
+
+## Amendments (before any run of record)
+
+2026-10-27, after a review of the scoring code and before any evaluation run of record. The text above and the
+sealed key hashes are unchanged.
+
+* **Story Recall** — a system that aired nothing on a matchday is scored there as missing every must-surface
+  storyline, and totals sum over every matchday; before, such a matchday dropped out of that system's recall.
+* **Spoilers in the delayed territory** — a line aired to MENA is checked in its English source as well as in the
+  aired text, for every system; Talkback's MENA lines are in Arabic, so a check on club names in Latin script only
+  caught the spoilers of the systems that air English there.
+* **Cut evaluations (`talkback eval --until`)** — the cut applies to every system's lines alike and the baseline is
+  cached per cut; before, baseline lines past the cut were scored and a cut baseline could be reused by a full run.
+* **`talkback eval-all`** — scores only broadcasts of gallery runs that completed; before, a crashed run's partial
+  recording, or two runs appended to one file, could be scored.
