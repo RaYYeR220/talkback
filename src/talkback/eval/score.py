@@ -29,6 +29,7 @@ class Line(BaseModel):
     text: str
     kind: str = "live"          # live | recap
     territory: str = "uk"
+    source_text: str | None = None  # the English line `text` was localised from, if any
 
 
 @dataclass
@@ -149,11 +150,14 @@ def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tu
         spoilers = 0
         mena = [l for l in ls if l.territory in ("mena", "all")]
         for l in mena:
+            # a localised line is read in its English source too: club names in another script escape the detector
+            texts = (l.text, l.source_text or l.text)
             for fid, h, a in w.fixtures:
                 if fid == l.match_id:
                     continue
                 recent = any(l.sim_t - SPOILER_DELAY_MS <= g <= l.sim_t for g in goals[fid])
-                if recent and (mentions_subject(l.text, ctx.name_of(h)) or mentions_subject(l.text, ctx.name_of(a))):
+                if recent and any(mentions_subject(t, ctx.name_of(h)) or mentions_subject(t, ctx.name_of(a))
+                                  for t in texts):
                     spoilers += 1
         results[system] = {
             "lines": len(uk), "story_recall": round(len(hit) / max(1, len(must)), 3),
@@ -188,5 +192,5 @@ def lines_from_broadcast(path: Path, system: str = "talkback", include_killed: b
             if v["verdict"] == "ON_AIR":
                 text = v["text"] if v.get("text") else c["text"]
                 out.append(Line(system=system, match_id=c["match_id"], sim_t=msg["sim_t"], text=text, kind=kind,
-                                territory=terr))
+                                territory=terr, source_text=c["text"]))
     return out
