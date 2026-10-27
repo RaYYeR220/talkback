@@ -22,7 +22,7 @@ from agent_framework import Executor, WorkflowBuilder, WorkflowContext, handler,
 from talkback.clearance.checks import CheckContext
 from talkback.clearance.gate import Gate
 from talkback.clearance.packs import PackContext
-from talkback.gallery.agents.archivist import make_archivist, pick_storylines
+from talkback.gallery.agents.archivist import make_archivist, moment_prompt, pick_storylines, stories_from_answer
 from talkback.gallery.agents.desks import TerritoryDesk, localise_all, localise_many
 from talkback.gallery.agents.lab import LabBackend, LabResult, finalize, make_lab
 from talkback.gallery.agents.writer import WriterFailure, draft_cues, make_writer, revise_cue
@@ -104,7 +104,7 @@ class MomentDeps:
     pack_ctx: Callable[[str], PackContext]
     state_now: Callable[[str], MatchState]
     client: Callable[[str], object]          # tier -> chat client
-    archivist_override: Callable[[MomentJob], object] | None = None
+    remote: object | None = None             # RemoteAgents: Archivist and Lab over A2A
 
 
 def _ms(t0: float) -> int:
@@ -126,10 +126,19 @@ class ArchivistExec(Executor):
     async def research(self, job: MomentJob, ctx: WorkflowContext[Stories]) -> None:
         t0 = time.perf_counter()
         board = self.deps.boards[job.moment.match_id]
+        remote = self.deps.remote
+        note = ""
+        if remote is not None and remote.enabled("archivist"):
+            try:
+                text = await remote.ask("archivist", moment_prompt(job.moment, board, self.deps.world))
+                await ctx.send_message(Stories(job, stories_from_answer(text, board), "a2a", _ms(t0)))
+                return
+            except Exception as exc:  # noqa: BLE001 - fall back to the in-process archivist
+                note = f"degraded: a2a {type(exc).__name__}, ran in-process"
         try:
             agent = make_archivist(self.deps.client("strong"), self.deps.world, board)
             stories = await pick_storylines(agent, job.moment, board, self.deps.world)
-            await ctx.send_message(Stories(job, stories, "ok", _ms(t0)))
+            await ctx.send_message(Stories(job, stories, note or "ok", _ms(t0)))
         except Exception as exc:  # noqa: BLE001 - degrade, never stop the moment
             await ctx.send_message(Stories(job, [], f"degraded: {type(exc).__name__}", _ms(t0)))
 
@@ -148,10 +157,21 @@ class LabExec(Executor):
         if backend is None or m.kind not in LAB_MOMENTS or not job.anchor_event_id:
             await ctx.send_message(LabOut(job, empty, "skipped", _ms(t0)))
             return
+        prompt = (f"Moment {m.kind} at {m.t // 60_000}' in {m.match_id} (moment id {m.id}). The shot event is "
+                  f"{job.anchor_event_id}. Menu: cancel_shot (what if he had not shot), complete_intercepted_pass.")
+        remote = self.deps.remote
+        if remote is not None and remote.enabled("lab"):
+            try:
+                sealed = LabResult.model_validate_json(await remote.ask("lab", prompt))
+                ok = any(x.metric == "threat" and (x.ci95[0] > 0 or x.ci95[1] < 0) for x in sealed.experiments)
+                sealed = sealed.model_copy(update={"supported": ok, "status": "a2a"})
+                if sealed.experiments:
+                    await ctx.send_message(LabOut(job, sealed, "a2a", _ms(t0)))
+                    return
+            except Exception:  # noqa: BLE001 - fall through to the in-process Lab
+                pass
         try:
             agent = make_lab(self.deps.client("strong"), backend, m.id, m.match_id)
-            prompt = (f"Moment {m.kind} at {m.t // 60_000}' in {m.match_id}. The shot event is {job.anchor_event_id}. "
-                      f"Menu: cancel_shot (what if he had not shot), complete_intercepted_pass.")
             result = finalize((await agent.run(prompt)).text, backend)
             if not result.experiments:
                 # the model ran nothing: run the default experiment so the writer still has evidence

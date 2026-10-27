@@ -24,6 +24,7 @@ from talkback.gallery.agents.lab import LabBackend
 from talkback.gallery.bus import Broadcaster, FileSource
 from talkback.gallery.director import Director, LiveScore, LiveTable, swings
 from talkback.gallery.evidence import evidence_facts
+from talkback.gallery.remote import RemoteAgents
 from talkback.gallery.snapshots import SnapshotStore
 from talkback.gallery.spotter import Candidate, Moment, Spotter, Triggers
 from talkback.gallery.storyboard import StoryBoard
@@ -120,7 +121,8 @@ class MatchdayRunner:
         self.stats = {"moments": 0, "workflows": 0, "cues": 0, "aired": 0, "held": 0, "killed": 0, "stale": 0}
         self.deps = MomentDeps(world=self.world, boards={f: m.board for f, m in self.matches.items()},
                                lab=self.lab, gate=gate, desks=self.desks, pack_ctx=self.pack_ctx,
-                               state_now=lambda f: self.matches[f].state(), client=client_for)
+                               state_now=lambda f: self.matches[f].state(), client=client_for,
+                               remote=RemoteAgents.from_env())
 
     # ------------------------------------------------------------- contexts
     def pack_ctx(self, match_id: str) -> PackContext:

@@ -1,0 +1,71 @@
+"""The Lab as a stand-alone agent (Foundry hosted agent / A2A server).
+
+The model picks and runs experiments with its tool; a middleware then seals
+the answer: the reply carries the experiments exactly as the simulator
+returned them and `supported` recomputed from their intervals, so no number
+ever passes through the model's retelling.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Annotated
+
+from agent_framework import Agent, AgentContext, AgentMiddleware, AgentResponse, Message, tool
+from pydantic import Field
+
+from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, finalize
+from talkback.gallery.llm import make_client
+from talkback.gallery.world import World
+from talkback.hosted.runstore import run_dir, snapshot_store
+from talkback.schemas.models import Event
+from talkback.sim.rollout import is_supported
+
+REMOTE_INSTRUCTIONS = INSTRUCTIONS + (
+    " The prompt names the match id and the moment id; pass them to run_experiment."
+)
+
+
+def remote_tools(backend: LabBackend) -> list:
+    @tool(description="Replay a moment in the simulator with one change and measure the paired effect.")
+    async def run_experiment(
+        match_id: Annotated[str, Field(description="fixture id, e.g. MD12-F03")],
+        moment_id: Annotated[str, Field(description="moment id from the prompt")],
+        event_id: Annotated[str, Field(description="id of the event to change (a failed pass or a shot)")],
+        experiment: Annotated[ExperimentKind, Field(description="which change to make")],
+    ) -> dict:
+        try:
+            xs = await asyncio.to_thread(backend.run, moment_id, match_id, event_id, experiment)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        return {x.id: {"metric": x.metric, "effect": x.effect, "ci95": x.ci95, "supported": is_supported(x.ci95),
+                       "change": x.intervention["describe"]} for x in xs}
+
+    return [run_experiment]
+
+
+class SealResult(AgentMiddleware):
+    def __init__(self, backend: LabBackend):
+        self.backend = backend
+
+    async def process(self, context: AgentContext, call_next) -> None:
+        await call_next()
+        if context.stream or context.result is None:
+            return
+        sealed = finalize(context.result.text, self.backend)
+        context.result = AgentResponse(messages=[Message(role="assistant", contents=[sealed.model_dump_json()])])
+
+
+def build_agent() -> Agent:
+    root = run_dir()
+    world = World.load(root / "world.json")
+    events: dict[str, Event] = {}
+    with open(root / "events.jsonl", encoding="utf-8") as fh:
+        for line in fh:
+            e = Event.model_validate(json.loads(line))
+            events[e.id] = e
+    backend = LabBackend(snapshot_store(root), world, events.get, n=120, horizon_s=15)
+    return Agent(client=make_client("strong"), instructions=REMOTE_INSTRUCTIONS, name="lab",
+                 description="Counterfactual experiments on match moments.", tools=remote_tools(backend),
+                 middleware=[SealResult(backend)], default_options={"store": False})

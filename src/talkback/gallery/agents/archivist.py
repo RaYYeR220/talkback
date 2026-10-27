@@ -33,7 +33,8 @@ class ArchivistAnswer(BaseModel):
     storylines: list[StoryPick]
 
 
-def archivist_tools(world: World, board: StoryBoard) -> list:
+def archivist_tools(world: World, board: StoryBoard | None) -> list:
+    """Season lookups, plus the story board when the agent runs next to it (it is in the prompt otherwise)."""
     @tool(description="Storylines on this match's story board, with their status (latent, live, surfaced, resolved).")
     def story_board() -> list[dict]:
         return [{"id": s.id, "kind": s.kind, "status": s.status, "summary": s.summary, "facts": s.facts}
@@ -55,7 +56,7 @@ def archivist_tools(world: World, board: StoryBoard) -> list:
                 "unbeaten_run": r.unbeaten_run, "manager": c.manager.name,
                 "manager_games": c.manager.games_in_charge}
 
-    return [story_board, player_profile, club_profile]
+    return [story_board, player_profile, club_profile] if board is not None else [player_profile, club_profile]
 
 
 def make_archivist(client, world: World, board: StoryBoard) -> Agent:
@@ -75,8 +76,12 @@ def moment_prompt(moment: Moment, board: StoryBoard, world: World) -> str:
 async def pick_storylines(agent: Agent, moment: Moment, board: StoryBoard, world: World) -> list[Storyline]:
     """Run the Archivist; unknown ids are dropped, a malformed answer yields no storylines."""
     result = await agent.run(moment_prompt(moment, board, world))
+    return stories_from_answer(result.text, board)
+
+
+def stories_from_answer(text: str, board: StoryBoard) -> list[Storyline]:
     try:
-        answer = parse_json(result.text, ArchivistAnswer)
+        answer = parse_json(text, ArchivistAnswer)
     except ParseError:
         return []
     picked = []
