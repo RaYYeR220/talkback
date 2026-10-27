@@ -47,7 +47,9 @@ npm run typecheck
 
 ### Theme
 
-Every colour, font role, radius, space and duration is a custom property in `src/styles/theme.css`; the pitch canvas reads the same properties. The faces are loaded in `src/styles/fonts.ts`. Re-theming means editing those two files. (The favicon in `src/app/icon.svg` carries its own two colours.)
+Every colour, font role, radius, space and duration is a custom property in `src/styles/theme.css`; the pitch canvas reads the same properties. The faces are loaded in `src/styles/fonts.ts`. Re-theming means editing those two files. (The favicon in `src/app/icon.svg` carries its own colours.)
+
+The look is a broadcast gallery seen from behind the director: warm black, fine grain, panels as monitors with under-monitor displays (`.umd`) and tally lamps (`.lamp`). The red tally (`--tally`) means on air or programme and nothing else: the Director's world-feed match, aired verdicts, on-air graphics. Kills and errors use `--killed`, holds `--held`, health and good swings `--ok`. Display and UI text is Schibsted Grotesk, UMDs Barlow Condensed, labels IBM Plex Mono; right-to-left text uses Noto Sans Arabic.
 
 ### OGraf
 
