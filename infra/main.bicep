@@ -268,7 +268,7 @@ var foundryEnv = [
   { name: 'FOUNDRY_MODEL_FAST', value: fastModelName }
   { name: 'FOUNDRY_MODEL_STRONG', value: strongModelName }
   { name: 'TALKBACK_REASONING_EFFORT_STRONG', value: strongReasoningEffort }
-  { name: 'CONTENT_SAFETY_ENDPOINT', value: foundry.outputs.accountEndpoint }
+  { name: 'CONTENT_SAFETY_ENDPOINT', value: foundry.outputs.contentSafetyEndpoint }
 ]
 var eventHubEnv = [
   { name: 'EVENTHUB_FQDN', value: eventHubs.outputs.fqdn }
@@ -557,7 +557,7 @@ output AZURE_AI_PROJECT_ID string = foundry.outputs.projectId
 output FOUNDRY_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint
 output AZURE_OPENAI_ENDPOINT string = foundry.outputs.openAiEndpoint
 output AZURE_AI_SERVICES_ENDPOINT string = foundry.outputs.accountEndpoint
-output CONTENT_SAFETY_ENDPOINT string = foundry.outputs.accountEndpoint
+output CONTENT_SAFETY_ENDPOINT string = foundry.outputs.contentSafetyEndpoint
 output FOUNDRY_MODEL_FAST string = fastModelName
 output FOUNDRY_MODEL_STRONG string = strongModelName
 output TALKBACK_REASONING_EFFORT_STRONG string = strongReasoningEffort

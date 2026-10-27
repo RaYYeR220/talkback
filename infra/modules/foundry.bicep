@@ -148,3 +148,5 @@ output projectId string = account::project.id
 output projectPrincipalId string = account::project.identity.principalId
 output projectEndpoint string = 'https://${account.name}.services.ai.azure.com/api/projects/${account::project.name}'
 output openAiEndpoint string = 'https://${account.name}.openai.azure.com/'
+// Content Safety with Entra ID answers on the Foundry host; the cognitiveservices host refuses the same token.
+output contentSafetyEndpoint string = 'https://${account.name}.services.ai.azure.com/'
