@@ -1,0 +1,86 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-bar);
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-3) var(--gutter);
+  min-height: 3.25rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.mark {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.word {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.nav a {
+  color: var(--fg-muted);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid transparent;
+}
+
+.nav a:hover {
+  color: var(--fg);
+}
+
+.nav a[aria-current="page"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.slot {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  .inner {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+  }
+  .nav {
+    order: 3;
+    width: 100%;
+    gap: var(--space-4);
+  }
+  .slot {
+    gap: var(--space-2);
+  }
+}

@@ -1,0 +1,24 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.line {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+
+.line strong {
+  color: var(--fg);
+  font-weight: var(--weight-strong);
+}
+
+.since {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+}

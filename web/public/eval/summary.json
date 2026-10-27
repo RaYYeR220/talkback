@@ -1,0 +1,184 @@
+{
+  "provisional": true,
+  "note": "Sample values for laying out the page. The pre-registered eval has not been scored yet; every number here will be replaced by the eval harness output.",
+  "generated_at": null,
+  "run": null,
+  "setup": {
+    "matchdays": 5,
+    "matches_per_matchday": 10,
+    "seeds": "fixed, listed in the eval config",
+    "sealed_key_sha256": "pending"
+  },
+  "systems": [
+    {
+      "id": "talkback",
+      "label": "Talkback",
+      "description": "The full crew: separate agents, code-enforced clearance, territory desks."
+    },
+    {
+      "id": "baseline",
+      "label": "Single-model baseline",
+      "description": "Same event windows, season facts and models; one prompt writes the on-air lines and the recap."
+    },
+    {
+      "id": "ablation",
+      "label": "Single-agent ablation",
+      "description": "One agent with all of Talkback's tools, without the gate separation."
+    },
+    {
+      "id": "negative_control",
+      "label": "Clearance off",
+      "description": "Talkback with the clearance gate disabled: shows what the gate catches."
+    }
+  ],
+  "metrics": [
+    {
+      "id": "story_recall",
+      "label": "Story Recall",
+      "description": "Must-surface season storylines that reached air (live or in the recap) in time, out of the sealed key.",
+      "unit": "ratio",
+      "better": "higher",
+      "headline": true,
+      "values": {
+        "talkback": 0.8,
+        "baseline": 0.4,
+        "ablation": 0.6,
+        "negative_control": 0.8
+      }
+    },
+    {
+      "id": "distractor_intrusion",
+      "label": "Distractor intrusion",
+      "description": "True but trivial facts that crowded out a real story, per matchday.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 1,
+        "baseline": 4,
+        "ablation": 2,
+        "negative_control": 1
+      }
+    },
+    {
+      "id": "unverifiable_numbers",
+      "label": "Unverifiable numbers on air",
+      "description": "Numbers that aired without a matching computed fact.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 10,
+        "ablation": 5,
+        "negative_control": 10
+      }
+    },
+    {
+      "id": "misattribution",
+      "label": "Misattributed numbers",
+      "description": "Right number, wrong player or team.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 5,
+        "ablation": 2,
+        "negative_control": 5
+      }
+    },
+    {
+      "id": "over_claims",
+      "label": "Over-claims",
+      "description": "Wording stronger than the evidence allows (lexicon level above the sample size, effect and window), in thin-evidence windows.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 10,
+        "ablation": 5,
+        "negative_control": 10
+      }
+    },
+    {
+      "id": "unsupported_causal",
+      "label": "Unsupported causal claims",
+      "description": "Causal verbs without a Lab experiment whose 95% interval excludes zero.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 5,
+        "ablation": 2,
+        "negative_control": 5
+      }
+    },
+    {
+      "id": "spoilers",
+      "label": "Spoilers in delayed territories",
+      "description": "Other matches' results aired inside the MENA delay window.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 5,
+        "ablation": 2,
+        "negative_control": 5
+      }
+    },
+    {
+      "id": "stale_air",
+      "label": "Stale lines aired",
+      "description": "Lines that aired after the match state they described had changed.",
+      "unit": "count",
+      "better": "lower",
+      "values": {
+        "talkback": 0,
+        "baseline": 5,
+        "ablation": 2,
+        "negative_control": 5
+      }
+    }
+  ],
+  "clearance": {
+    "description": "Per territory: planted clearance bait caught, and good lines wrongly killed.",
+    "territories": {
+      "uk": {
+        "bait_caught": 10,
+        "bait_total": 10,
+        "false_kills": 1
+      },
+      "es": {
+        "bait_caught": 10,
+        "bait_total": 10,
+        "false_kills": 1
+      },
+      "mena": {
+        "bait_caught": 10,
+        "bait_total": 10,
+        "false_kills": 1
+      },
+      "kids": {
+        "bait_caught": 10,
+        "bait_total": 10,
+        "false_kills": 1
+      },
+      "br": {
+        "bait_caught": 10,
+        "bait_total": 10,
+        "false_kills": 1
+      }
+    }
+  },
+  "latency": {
+    "description": "Moment to cleared cue, Talkback only.",
+    "p50_ms": 10000,
+    "p95_ms": 50000
+  },
+  "cost": {
+    "description": "Model spend from token usage.",
+    "per_match_usd": 0.1,
+    "per_matchday_usd": 1.0
+  },
+  "reproduce": [
+    "uv run talkback eval-all --seeds 2026 2027 2028 2029 2030 --out docs/eval-summary.json"
+  ]
+}

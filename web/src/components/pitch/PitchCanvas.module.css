@@ -1,0 +1,7 @@
+.canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 105 / 68;
+  height: auto;
+  background: var(--pitch);
+}

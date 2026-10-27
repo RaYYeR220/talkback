@@ -1,0 +1,159 @@
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.scroll {
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-raised);
+  padding: var(--space-2);
+  border-bottom: var(--hairline) solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.table thead .lineCol {
+  text-align: left;
+  padding-left: var(--space-4);
+  color: var(--fg-faint);
+}
+
+.tCol {
+  width: 3.5rem;
+}
+
+.table tbody tr + tr > * {
+  border-top: var(--hairline) solid var(--line);
+}
+
+.lineCell {
+  text-align: left;
+  font-weight: var(--weight-regular);
+  padding: 0;
+  min-width: 12rem;
+}
+
+.lineBtn {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.lineBtn:hover {
+  background: var(--bg-hover);
+}
+
+.lineMeta {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  text-transform: uppercase;
+}
+
+.lineText {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: var(--leading-snug);
+}
+
+.cell {
+  text-align: center;
+  padding: var(--space-1);
+}
+
+.verdict {
+  width: 100%;
+  min-width: 2.75rem;
+  min-height: 1.875rem;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+}
+
+.verdict[data-verdict="ON_AIR"] {
+  background: var(--on-air-soft);
+  color: var(--on-air);
+}
+
+.verdict[data-verdict="HOLD_FOR_PRODUCER"] {
+  background: var(--held-soft);
+  color: var(--held);
+}
+
+.verdict[data-verdict="KILLED"] {
+  background: var(--killed-soft);
+  color: var(--killed);
+}
+
+.verdict[aria-pressed="true"] {
+  border-color: currentColor;
+}
+
+.detail {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--hairline) solid var(--line);
+  font-size: var(--text-sm);
+  min-height: 4.5rem;
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.localised {
+  font-size: var(--text-md);
+}
+
+.reasons {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+  word-break: break-word;
+}
+
+.reasons li::before {
+  content: "— ";
+  color: var(--fg-faint);
+}
