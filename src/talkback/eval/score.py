@@ -19,6 +19,7 @@ from talkback.world.key import AnswerKey
 
 THIN_WINDOW_MS = 8 * 60_000
 SPOILER_DELAY_MS = 2 * 60_000
+SYSTEMS = ("talkback", "talkback_without_clearance", "baseline")
 
 
 class Line(BaseModel):
@@ -97,11 +98,12 @@ def _verifiable(value: float, unit: str, known: set[float]) -> bool:
     return False
 
 
-def score(ctx: Context, lines: list[Line], end_t: int | None = None) -> dict:
+def score(ctx: Context, lines: list[Line], end_t: int | None = None, systems: tuple[str, ...] = SYSTEMS) -> dict:
+    """Every one of `systems` is scored, also when it aired nothing (then it missed every must story)."""
     w = ctx.world
-    by_system: dict[str, list[Line]] = defaultdict(list)
+    by_system: dict[str, list[Line]] = {name: [] for name in systems}
     for ln in lines:
-        by_system[ln.system].append(ln)
+        by_system.setdefault(ln.system, []).append(ln)
     known = _known_numbers(ctx)
     goals = defaultdict(list)
     for e in ctx.events:

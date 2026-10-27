@@ -45,3 +45,13 @@ def test_overclaims_and_spoilers_are_counted(ctx):
     res = score(ctx, lines)["s"]
     assert res["overclaims_in_thin_windows"] == 1
     assert res["mena_spoilers"] == 1
+
+
+@pytest.mark.slow
+def test_a_system_without_lines_still_counts_every_must_story(ctx):
+    must = sum(1 for i in ctx.key.items if i.must)
+    res = score(ctx, [])
+    assert {"talkback", "talkback_without_clearance", "baseline"} <= set(res)
+    for row in res.values():
+        assert row["lines"] == 0 and row["story_recall"] == 0
+        assert row["must"] == must and row["stories_missed"] == must
