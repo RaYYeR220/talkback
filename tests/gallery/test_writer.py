@@ -61,3 +61,9 @@ def test_a_full_recap_fits():
                                                                   "data": {"title": "x"}, "claims": []}]})),
                                   "MD12-F01", "Calder Vale v Ashcombe Rovers", "2-1", [], [], [], {}, "h", 5_700_000))
     assert cue.text == text and cue.data == {}
+
+
+def test_writer_is_told_not_to_put_ids_on_air():
+    from talkback.gallery.agents.writer import INSTRUCTIONS
+
+    assert "never write ids" in INSTRUCTIONS.lower()

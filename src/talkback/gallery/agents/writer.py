@@ -33,6 +33,7 @@ INSTRUCTIONS = (
     "1. Every number in a line must be a claim whose refs point to a fact, experiment or storyline id from the "
     "evidence; the claim's value is the number exactly as written in the line (a fact of 0.31 written as 31% "
     "has value 31). Write numbers as digits (3, not three); a number in words is checked the same way. "
+    "Never write ids (C14-P04, MD12-F07) in a line; say the player's or club's name given in brackets. "
     "For comparative words (more, on top, dominant) cite the facts of both sides.\n"
     "2. The claim's subject is the player or club id the number or story belongs to (for a storyline claim, one "
     "of the ids listed as its subjects), never a fact, experiment or storyline id.\n"

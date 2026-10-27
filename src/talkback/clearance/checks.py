@@ -6,11 +6,13 @@ fails closed: any reason kills the cue, and so does any exception.
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
 from talkback.clearance.lexicon import THRESHOLDS, detect_strength, has_causal
-from talkback.clearance.numbers import NumberToken, extract_tokens
+from talkback.clearance.numbers import NumberToken, extract_tokens, normalize_digits
 from talkback.clearance.sensitive import sensitive_topics
 from talkback.schemas.models import (
     Claim, ClaimKind, Cue, Experiment, Fact, MatchState, Storyline, Verdict,
@@ -60,6 +62,20 @@ def _shown_minutes(state: MatchState) -> tuple[int, int]:
     return elapsed - 4, elapsed
 
 
+_SCORELINE = re.compile(r"(?<![\d.])(\d{1,2})\s*[-\u2013\u2014:]\s*(\d{1,2})(?![\d.])")
+
+
+def _live_score_numbers(text: str, state: MatchState) -> Counter:
+    """Each number of a scoreline in the text that is this match's live score, once."""
+    left: Counter = Counter()
+    for m in _SCORELINE.finditer(normalize_digits(text)):
+        pair = {(int(m.group(1)), int(m.group(2))), (int(m.group(2)), int(m.group(1)))}
+        if (state.home_goals, state.away_goals) in pair:
+            left[float(m.group(1))] += 1
+            left[float(m.group(2))] += 1
+    return left
+
+
 def _rounded(tok: NumberToken, value: float) -> bool:
     """A whole number written for a large value it rounds to ("123 km/h" for 122.7). Small values must be
     written as they are: rounding 1.4 xG to 1 changes what the line says."""
@@ -70,8 +86,8 @@ def _minute_ok(tok: NumberToken, state: MatchState, created_t: int) -> bool:
     """A minute mark is the minute of the line's own moment or later, never ahead of the clock. An earlier
     minute ("pressing since the 12th minute" at 70') is a claim nothing here backs."""
     lo, hi = _shown_minutes(state)
-    own = created_t // 60_000 + 1
-    return tok.minute and min(own, lo) - 2 <= tok.value <= hi + 2
+    own = created_t // 60_000 + 1  # a moment is spotted up to a few minutes after it happened
+    return tok.minute and min(own, lo) - 5 <= tok.value <= hi + 2
 
 
 def _story_values(story: Storyline) -> list[float]:
@@ -150,15 +166,21 @@ def check_numbers(cue: Cue, ctx: CheckContext) -> list[str]:
     Claim values are as written in the text (31 for "31%"); refs may hold the fraction.
     """
     claims = [c for c in cue.claims if c.kind in _NUMERIC]
+    score_left = _live_score_numbers(cue.text, ctx.state)
     shown: dict[int, NumberToken] = {}
     reasons: list[str] = []
     for tok in extract_tokens(cue.text, ctx.lang):
         hits = [i for i, c in enumerate(claims) if c.value is not None
-                and (_close(tok.value, c.value, tok.tolerance) or _rounded(tok, c.value))]
+                and (_close(tok.value, c.value, tok.tolerance) or _rounded(tok, c.value)
+                     or (tok.percent and _close(tok.value, c.value * 100, tok.tolerance)))]  # 31% for 0.31
         for i in hits:
             shown.setdefault(i, tok)
-        if not hits and not _minute_ok(tok, ctx.state, cue.created_t) and not _storyline_count(tok, cue, ctx):
-            reasons.append(f"number: {tok.label()} has no matching claim")
+        if hits or _minute_ok(tok, ctx.state, cue.created_t) or _storyline_count(tok, cue, ctx):
+            continue
+        if score_left[tok.value] > 0:  # the live score of this match, which the state itself backs
+            score_left[tok.value] -= 1
+            continue
+        reasons.append(f"number: {tok.label()} has no matching claim")
     for i, claim in enumerate(claims):
         reasons += _verify(claim, shown.get(i), ctx)
     return _dedupe(reasons)

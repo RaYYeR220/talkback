@@ -258,3 +258,21 @@ def test_football_compounds_are_not_number_words():
 def test_minute_marks_point_at_the_lines_moment_or_later_not_ahead(text, moment_t, ok):
     assert (_numbers_only(universal_checks(cue(text, created_t=moment_t, max_age_ms=10_000_000), ctx())[1])
             == []) is ok
+
+
+def test_percent_written_for_a_fraction_claim_matches():
+    c = cue("Ashford's field tilt is 31%", [claim("31%", subject="C01", refs=["F_tilt_home"], value=0.31)])
+    assert _numbers_only(universal_checks(c, ctx())[1]) == []
+
+
+def test_the_live_score_needs_no_claim():
+    # STATE: 1-0 at 70'
+    assert _numbers_only(universal_checks(cue("Still 1-0 to Ashford"), ctx())[1]) == []
+    assert _numbers_only(universal_checks(cue("Ashford lead 2-0"), ctx())[1]) != []
+
+
+def test_a_minute_shortly_before_the_line_was_spotted_is_fine():
+    first_half = MatchState(match_id="F01", t=39 * 60_000, period=1, home_goals=0, away_goals=0,
+                            game_state_hash=STATE_HASH)
+    c = cue("Mensah went close at 37 minutes", created_t=39 * 60_000)  # spotted two minutes after the chance
+    assert _numbers_only(universal_checks(c, ctx(state=first_half))[1]) == []
