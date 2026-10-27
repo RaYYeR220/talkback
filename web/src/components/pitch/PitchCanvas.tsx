@@ -19,6 +19,8 @@ interface Props {
   smooth?: boolean;
   /** Draw shirt numbers on the players. */
   numbers?: boolean;
+  /** "kit" draws club colours; "mono" draws both sides in ink (the landing wall), with no idle caption. */
+  tone?: "kit" | "mono";
   label: string;
   className?: string;
 }
@@ -31,6 +33,8 @@ interface Palette {
   shadow: string;
   homeFallback: string;
   awayFallback: string;
+  homeMono: string;
+  awayMono: string;
   mono: string;
   faint: string;
 }
@@ -44,10 +48,12 @@ function readPalette(el: Element): Palette {
     line: v("--pitch-line", "rgba(255,255,255,.25)"),
     ink: v("--pitch-ink", "#f4f3ee"),
     shadow: v("--pitch-shadow", "rgba(0,0,0,.45)"),
-    homeFallback: v("--home-fallback", "#e8e6df"),
-    awayFallback: v("--away-fallback", "#ff6b35"),
+    homeFallback: v("--home-fallback", "#efece6"),
+    awayFallback: v("--away-fallback", "#8f8a80"),
+    homeMono: v("--pitch-home-mono", "#efece6"),
+    awayMono: v("--pitch-away-mono", "#8f8a80"),
     mono: v("--font-mono", "monospace"),
-    faint: v("--fg-faint", "#6d6c66"),
+    faint: v("--fg-faint", "#858178"),
   };
 }
 
@@ -56,8 +62,9 @@ function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palet
   const sy = h / W;
   ctx.fillStyle = p.pitch;
   ctx.fillRect(0, 0, w, h);
+  // mown stripes: 7.5 m every 15 m
   ctx.fillStyle = p.stripe;
-  for (let i = 0; i < 12; i += 2) ctx.fillRect((i * w) / 12, 0, w / 12, h);
+  for (let x = 0; x < L; x += 15) ctx.fillRect(x * sx, 0, 7.5 * sx, h);
 
   ctx.strokeStyle = p.line;
   ctx.lineWidth = Math.max(1, w / 520);
@@ -87,7 +94,18 @@ function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palet
   }
 }
 
-export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = false, numbers = false, label, className }: Props) {
+export function PitchCanvas({
+  matchId,
+  home,
+  away,
+  hz,
+  delayMs = 0,
+  smooth = false,
+  numbers = false,
+  tone = "kit",
+  label,
+  className,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frames = useFrames(matchId, hz, delayMs);
   const reduced = usePrefersReducedMotion();
@@ -97,9 +115,14 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const flat = tone === "mono";
+    const kitsFor = (p: Palette) =>
+      flat
+        ? { home: [p.homeMono, p.homeMono] as [string, string], away: [p.awayMono, p.awayMono] as [string, string] }
+        : kitColours(home, away, { home: p.homeFallback, away: p.awayFallback });
     let palette = readPalette(canvas);
     let paletteAt = performance.now();
-    let kits = kitColours(home, away, { home: palette.homeFallback, away: palette.awayFallback });
+    let kits = kitsFor(palette);
     let cssW = 0;
     let cssH = 0;
     let dirty = true;
@@ -125,7 +148,7 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
       raf = requestAnimationFrame(draw);
       if (now - paletteAt > 2000) {
         palette = readPalette(canvas);
-        kits = kitColours(home, away, { home: palette.homeFallback, away: palette.awayFallback });
+        kits = kitsFor(palette);
         paletteAt = now;
         dirty = true;
       }
@@ -140,6 +163,7 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
       drawPitch(ctx, w, h, palette);
       const next = b.next;
       if (!next) {
+        if (flat) return;
         ctx.fillStyle = palette.faint;
         ctx.font = `${Math.max(10, w / 48)}px ${palette.mono}`;
         ctx.textAlign = "center";
@@ -151,7 +175,7 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
       const sy = h / W;
       const prevPos = new Map<string, [number, number]>();
       if (k < 1 && b.prev) b.prev.ids.forEach((id, i) => prevPos.set(id, b.prev!.pos[i]));
-      const r = Math.max(2, Math.min(10, sx * (numbers ? 1.2 : 1.05)));
+      const r = flat ? Math.max(1.5, sx * 1.35) : Math.max(2, Math.min(10, sx * (numbers ? 1.2 : 1.05)));
       ctx.lineWidth = Math.max(1, r / 4);
       for (let i = 0; i < next.ids.length; i++) {
         const id = next.ids[i];
@@ -168,8 +192,10 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fillStyle = kit[0];
         ctx.fill();
-        ctx.strokeStyle = kit[1];
-        ctx.stroke();
+        if (!flat) {
+          ctx.strokeStyle = kit[1];
+          ctx.stroke();
+        }
         if (numbers && r >= 6) {
           const shirt = player(id)?.shirt;
           if (shirt !== undefined) {
@@ -204,7 +230,7 @@ export function PitchCanvas({ matchId, home, away, hz, delayMs = 0, smooth = fal
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [frames, home, away, smooth, reduced, numbers, matchId]);
+  }, [frames, home, away, smooth, reduced, numbers, matchId, tone]);
 
   return (
     <canvas ref={canvasRef} className={`${styles.canvas} ${className ?? ""}`} role="img" aria-label={label} />
