@@ -18,8 +18,8 @@ out/
 !.env.example
 .azure/
 
-# Local tooling and working notes
-*-backup*
+# Local scratch
+docs/*-backup*
 *.bundle
 
 # Design scratch
