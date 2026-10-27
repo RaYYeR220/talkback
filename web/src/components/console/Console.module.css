@@ -1,0 +1,72 @@
+.main {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-3) var(--gutter) var(--space-8);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.wall {
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.program,
+.side,
+.lower {
+  min-width: 0;
+}
+
+.programBody {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.outNote {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.side {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.lower {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+  .lower {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 64rem) and (max-width: 80rem) {
+  .lower {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lower > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 40rem) {
+  .programBody {
+    padding: var(--space-2);
+  }
+}

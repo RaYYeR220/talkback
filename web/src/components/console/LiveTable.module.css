@@ -1,0 +1,115 @@
+.swings {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--hairline) solid var(--line);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.delta[data-good="true"] {
+  color: var(--swing-up);
+}
+
+.delta[data-good="false"] {
+  color: var(--swing-down);
+}
+
+.scroll {
+  max-height: 30rem;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.table th,
+.table td {
+  padding: 0.3rem var(--space-2);
+  border-bottom: var(--hairline) solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+  font-weight: var(--weight-medium);
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-4);
+  width: 2.5rem;
+}
+
+.table .n {
+  text-align: right;
+}
+
+.table tbody tr[data-zone="top4"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--zone-top4);
+}
+
+.table tbody tr[data-zone="relegation"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--zone-relegation);
+}
+
+.club {
+  font-weight: var(--weight-regular);
+  max-width: 13rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.short {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+}
+
+.name {
+  margin-left: var(--space-2);
+  color: var(--fg-muted);
+}
+
+.cause {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.arrow,
+.moved {
+  margin-left: 2px;
+  font-size: 0.6rem;
+}
+
+.arrow[data-good="true"],
+.moved[data-good="true"] {
+  color: var(--swing-up);
+}
+
+.arrow[data-good="false"],
+.moved[data-good="false"] {
+  color: var(--swing-down);
+}
+
+@media (max-width: 40rem) {
+  .name {
+    display: none;
+  }
+}
+
+.table[data-compact] .name {
+  display: none;
+}

@@ -1,0 +1,227 @@
+.wrap {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.banner {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) dashed var(--held);
+  border-radius: var(--radius-2);
+  background: var(--held-soft);
+  color: var(--held);
+  font-size: var(--text-sm);
+}
+
+.banner strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.banner span {
+  color: var(--fg-muted);
+}
+
+.headline {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--bg-raised);
+}
+
+@media (min-width: 56rem) {
+  .headline {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: center;
+  }
+}
+
+.h2 {
+  font-size: var(--text-display-sm);
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+}
+
+.bars {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.barTrack {
+  display: block;
+  height: 12px;
+  background: var(--line);
+  border-radius: var(--radius-1);
+  overflow: hidden;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  background: var(--fg-faint);
+}
+
+.bars li[data-system="talkback"] .bar {
+  background: var(--accent);
+}
+
+.barValue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 6rem;
+  justify-content: flex-end;
+}
+
+.tag {
+  font-size: var(--text-2xs);
+  color: var(--held);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.scroll {
+  overflow-x: auto;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-3);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--hairline) solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.table thead th {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: var(--weight-regular);
+  min-width: 14rem;
+}
+
+.n {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.metric {
+  display: block;
+  font-weight: var(--weight-medium);
+}
+
+.desc {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.table td[data-sample],
+.tile[data-sample] dd {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 6px,
+    color-mix(in oklab, var(--held) 10%, transparent) 6px 7px
+  );
+  color: var(--fg-muted);
+}
+
+.systems {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.systems strong {
+  color: var(--fg);
+  font-weight: var(--weight-medium);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-3);
+}
+
+.tile {
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--bg-raised);
+}
+
+.tile dt {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.tile dd {
+  font-size: var(--text-xl);
+}
+
+.code {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--bg-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+@media (max-width: 40rem) {
+  .table tbody th {
+    min-width: 11rem;
+  }
+  .bars li {
+    grid-template-columns: 1fr auto;
+  }
+  .barTrack {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

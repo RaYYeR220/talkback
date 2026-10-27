@@ -1,0 +1,129 @@
+.graphic {
+  position: absolute;
+  max-width: min(60%, 26rem);
+  padding: var(--space-2) var(--space-3);
+  background: var(--graphic-bg);
+  color: var(--graphic-fg);
+  border-left: 3px solid var(--graphic-accent);
+  border-radius: var(--radius-1);
+  backdrop-filter: blur(6px);
+  font-size: clamp(0.6875rem, 2.1cqi, 1.0625rem);
+  line-height: var(--leading-snug);
+  animation: graphic-in var(--dur-3) var(--ease) both;
+}
+
+.graphic[dir="rtl"] {
+  border-left: 0;
+  border-right: 3px solid var(--graphic-accent);
+}
+
+/* card layer: right side; lower layer: bottom band; tag layer: bottom-left */
+.graphic[data-template="stat_card"],
+.graphic[data-template="counterfactual_card"],
+.graphic[data-template="table_swing"] {
+  top: 18%;
+  inset-inline-end: 3%;
+}
+
+.graphic[data-template="story_card"],
+.graphic[data-template="lower_third"] {
+  bottom: 6%;
+  inset-inline-start: 3%;
+  max-width: 78%;
+}
+
+.graphic[data-template="player_tag"] {
+  bottom: 6%;
+  inset-inline-start: 3%;
+}
+
+@keyframes graphic-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--graphic-accent);
+  margin-bottom: 0.15em;
+}
+
+.line {
+  font-weight: var(--weight-medium);
+}
+
+.name {
+  font-weight: var(--weight-strong);
+  font-size: 1.05em;
+}
+
+.metric {
+  font-size: 1.35em;
+  line-height: 1.1;
+}
+
+.metric span {
+  font-size: 0.6em;
+  opacity: 0.7;
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shirt {
+  display: grid;
+  place-items: center;
+  min-width: 1.8em;
+  height: 1.8em;
+  border-radius: var(--radius-1);
+  background: var(--graphic-accent);
+  color: var(--accent-fg);
+  font-weight: var(--weight-strong);
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 0.2em;
+  padding: 0 0.4em;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-1);
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--graphic-accent);
+}
+
+.bars {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.25em 0.5em;
+  margin-top: 0.4em;
+  font-size: 0.8em;
+}
+
+.bars > span:nth-child(3n + 1) {
+  opacity: 0.75;
+}
+
+.bar {
+  display: block;
+  min-width: 2px;
+  height: 0.5em;
+  background: var(--graphic-fg);
+  border-radius: var(--radius-1);
+}
+
+.barAlt {
+  background: var(--graphic-accent);
+}

@@ -1,0 +1,32 @@
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.note {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2 * var(--gutter)));
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--fg-muted);
+  background: var(--bg-raised);
+  border: var(--hairline) solid var(--line-strong);
+  border-radius: var(--radius-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.note:empty {
+  display: none;
+}
+
+.note[data-tone="warn"] {
+  color: var(--held);
+}
+
+.note[data-tone="ok"] {
+  color: var(--on-air);
+}
