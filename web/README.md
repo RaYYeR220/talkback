@@ -18,7 +18,7 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-The service address comes from `NEXT_PUBLIC_API_BASE` (default `http://127.0.0.1:8000`). It is read at build time, so set it before `npm run build`.
+The service address comes from `NEXT_PUBLIC_TALKBACK_API_URL` (default `http://127.0.0.1:8000`). It is read at build time, so set it before `npm run build`.
 
 ```sh
 npm run build        # standalone output in .next/standalone

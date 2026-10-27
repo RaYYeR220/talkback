@@ -1,6 +1,6 @@
 import type { FrameResponse, LedgerResponse, LiveStartResponse, StateResponse } from "./types";
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_TALKBACK_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /** Where the backend will serve the OGraf renderer page for a territory output. */
 export const OGRAF_RENDERER = (output: string) =>
