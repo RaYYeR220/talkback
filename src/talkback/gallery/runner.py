@@ -62,6 +62,8 @@ class MatchDesk:
     goal_times: list[int] = field(default_factory=list)
     frame_i: int = 0
     finished: bool = False
+    aired_texts: list[str] = field(default_factory=list)
+    scorers: list[str] = field(default_factory=list)
 
     def state(self) -> MatchState:
         return MatchState(match_id=self.fixture_id, t=self.t, period=self.period, home_goals=self.score[0],
@@ -141,6 +143,8 @@ class MatchdayRunner:
         if e.type == EventType.goal:
             m.score[k] += 1
             m.goal_times.append(e.t)
+            if e.player_id:
+                m.scorers.append(e.player_id)
         elif e.type == EventType.card and e.outcome == Outcome.red:
             m.reds[k] += 1
         elif e.type == EventType.substitution:
@@ -152,6 +156,7 @@ class MatchdayRunner:
                     self._story_moment(m, s.id, s.kind, e.t + 60_000 + 15_000 * len(self.moments) % 300_000)
         elif e.type == EventType.period_end and e.period == 2:
             m.finished = True
+            self._spawn(self._recap(m))
         for s in m.board.on_event(e):
             self._story_moment(m, s.id, s.kind, e.t)
         m.new_events.append(e)
@@ -293,6 +298,8 @@ class MatchdayRunner:
             for t, v in cue.verdicts.items():
                 if v.verdict == Verdict.ON_AIR:
                     self.stats["aired"] += 1
+                    if t == "uk":
+                        m.aired_texts.append(cue.text)
                     self.bc.publish("aired", m.t, {"id": f"{cue.id}:{t}", "cue_id": cue.id, "match_id": cue.match_id,
                                                     "territory": t, "text": v.text, "template": cue.template,
                                                     "data": cue.data, "audience": cue.audience,
@@ -303,7 +310,9 @@ class MatchdayRunner:
                 for ref in claim.refs:
                     if ref in m.board.stories and any(v.verdict == Verdict.ON_AIR for v in cue.verdicts.values()):
                         m.board.surfaced(ref, cue.id)
+            latency = int(sum(bundle.timings.values())) if bundle.timings else 0
             self.bc.publish("cue", m.t, {**cue.model_dump(mode="json"), "moment_kind": bundle.moment.kind,
+                                          "moment_t": bundle.moment.t, "latency_ms": latency,
                                           "status": bundle.status, "timings": bundle.timings,
                                           "stories": [s.id for s in bundle.stories],
                                           "experiments": [x.model_dump(mode="json") for x in bundle.lab.experiments],
@@ -336,6 +345,50 @@ class MatchdayRunner:
         self._air(CueBundle(moment=moment, cues=[cue], stories=[],
                             lab=LabResult(experiments=[], conclusion="", supported=False, status="skipped"),
                             status={"template": "ok"}))
+
+    async def _recap(self, m: MatchDesk) -> None:
+        from talkback.gallery.agents.lab import LabResult
+        from talkback.gallery.agents.recap import make_recap_writer, write_recap
+        from talkback.gallery.agents.desks import localise_all
+        from talkback.gallery.agents.writer import WriterFailure, make_writer, revise_cue
+        from talkback.gallery.workflow import CueBundle, _fixable
+
+        async with self.sem:
+            await asyncio.sleep(0)
+            moment = Moment(id=f"M-{m.fixture_id}-recap", match_id=m.fixture_id, t=m.t, kind="recap", subject=None,
+                            salience=1.0, rationale="full time", event_ids=[], ranked_by="rules")
+            facts = evidence_facts(m.desk, moment, m.t)
+            for pid in dict.fromkeys(m.scorers):
+                for metric in ("player.goals", "player.xg", "player.shots"):
+                    f = m.desk.fact(metric, pid)
+                    if f is not None:
+                        facts.append(f)
+            stories = list(m.board.stories.values())
+            name = f"{self.names[m.home]} v {self.names[m.away]}"
+            state = m.state()
+            try:
+                cue = await write_recap(make_recap_writer(self.client_for("strong")), m.fixture_id, name,
+                                        f"{m.score[0]}-{m.score[1]}", facts, stories, m.aired_texts, self.names,
+                                        state.game_state_hash, m.t)
+            except (WriterFailure, Exception) as exc:  # noqa: BLE001
+                self.bc.publish("agent", m.t, {"moment_id": moment.id, "stage": "error", "error": type(exc).__name__})
+                return
+            ctx = CheckContext(facts={f.id: f for f in facts}, experiments={}, storylines={s.id: s for s in stories},
+                               state=state, now_t=m.t, lang="en")
+            await self.gate.evaluate(cue, ctx, await localise_all(cue, self.desks), self.pack_ctx(m.fixture_id))
+            if _fixable(cue):
+                second = await revise_cue(make_writer(self.client_for("fast")), cue, cue.universal_reasons, moment,
+                                          facts, None, stories, self.names)
+                if second is not None:
+                    await self.gate.evaluate(second, ctx, await localise_all(second, self.desks),
+                                             self.pack_ctx(m.fixture_id))
+                    second.data = {**second.data, "revision_of": cue.id,
+                                   "first_refusal": "; ".join(cue.universal_reasons)[:300], "original_text": cue.text}
+                    cue = second
+            cited = {r for cl in cue.claims for r in cl.refs}
+            self._air(CueBundle(moment=moment, cues=[cue], stories=[s for s in stories if s.id in cited],
+                                lab=LabResult(experiments=[], conclusion="", supported=False, status="skipped"),
+                                status={"recap": "ok"}, evidence=[f for f in facts if f.id in cited]))
 
     # ---------------------------------------------------------------- table
     def _table(self) -> None:

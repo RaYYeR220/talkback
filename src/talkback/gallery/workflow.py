@@ -43,6 +43,11 @@ class MomentJob:
     state: MatchState
     now_t: int
     anchor_event_id: str | None = None
+    wall0: float = field(default_factory=time.monotonic)
+
+    def age_now_t(self) -> int:
+        """Match time as a 1x broadcast would see it: the moment's time plus real elapsed pipeline time."""
+        return self.now_t + int((time.monotonic() - self.wall0) * 1000)
 
 
 @dataclass
@@ -198,7 +203,7 @@ class ClearanceExec(Executor):
         ctx_checks = CheckContext(
             facts={f.id: f for f in d.job.facts}, experiments={x.id: x for x in d.lab.experiments},
             storylines={s.id: s for s in d.stories}, state=self.deps.state_now(match_id),
-            now_t=self.deps.state_now(match_id).t, lang="en")
+            now_t=d.job.age_now_t(), lang="en")
         for n, cue in enumerate(d.cues):
             localized = await localise_all(cue, self.deps.desks)
             await self.deps.gate.evaluate(cue, ctx_checks, localized, self.deps.pack_ctx(match_id))
@@ -210,7 +215,7 @@ class ClearanceExec(Executor):
                     localized = await localise_all(second, self.deps.desks)
                     await self.deps.gate.evaluate(second, ctx_checks, localized, self.deps.pack_ctx(match_id))
                     second.data = {**second.data, "revision_of": cue.id,
-                                   "first_refusal": "; ".join(cue.universal_reasons)[:300]}
+                                   "first_refusal": "; ".join(cue.universal_reasons)[:300], "original_text": cue.text}
                     d.cues[n] = second
                     d.status["revisions"] = str(int(d.status.get("revisions", "0")) + 1)
         d.timings["clearance"] = _ms(t0)
