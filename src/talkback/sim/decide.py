@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 TEMPERATURE = 0.012
 KEEP_VALUE = 0.03       # value of simply keeping the ball
-SHOT_A = 0.07           # shot hazard scale: P(shoot) = SHOT_A * xG^SHOT_EXP per decision
+SHOT_A = 0.065          # shot hazard scale: P(shoot) = SHOT_A * xG^SHOT_EXP per decision
 SHOT_EXP = 0.2
 CONE_FACTOR = 0.5
 CARRY_BONUS = 0.002

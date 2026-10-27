@@ -118,6 +118,9 @@ def resolve_flight(eng: "MatchEngine", f: "Flight") -> None:
     s.flight = None
     k = f.team
     if f.kind == "shot":
+        if eng.flip_active("shot", k):
+            eng.give_ball(f.passer, delay_ms=300)
+            return
         _resolve_shot(eng, f)
         return
     if f.outcome == "complete":
