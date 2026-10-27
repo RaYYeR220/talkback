@@ -13,6 +13,7 @@
   padding: 0.125rem var(--space-2);
   border: var(--hairline) solid var(--line-strong);
   border-radius: var(--radius-1);
+  background: var(--bg-sunken);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-caps);
@@ -22,14 +23,19 @@
 
 .badge[data-mode="live"] {
   color: var(--live);
-  border-color: color-mix(in oklab, var(--live) 50%, transparent);
+  border-color: color-mix(in oklab, var(--tally) 50%, transparent);
 }
 
 .dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: currentColor;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--lamp-off);
+}
+
+.badge[data-mode="live"] .dot {
+  background: var(--tally);
+  box-shadow: 0 0 6px var(--tally);
 }
 
 .badge[data-mode="live"] .dot {

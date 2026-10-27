@@ -4,6 +4,7 @@
   align-items: center;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   border-bottom: var(--hairline) solid var(--line);
 }
@@ -30,7 +31,7 @@
   top: 0;
   z-index: 1;
   background: var(--bg-raised);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-1);
   border-bottom: var(--hairline) solid var(--line);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -43,10 +44,11 @@
   text-align: left;
   padding-left: var(--space-4);
   color: var(--fg-faint);
+  text-transform: uppercase;
 }
 
 .tCol {
-  width: 3.5rem;
+  width: 4.25rem;
 }
 
 .table tbody tr + tr > * {
@@ -90,37 +92,81 @@
 
 .cell {
   text-align: center;
-  padding: var(--space-1);
+  padding: 3px;
 }
 
+/*
+ * Each cell is a tally on a UMD: ON AIR lights the red lamp (ink label), HELD an amber lamp,
+ * KILL a dead violet lamp. Colour, lamp shape and the word all carry the verdict.
+ */
 .verdict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   width: 100%;
-  min-width: 2.75rem;
+  min-width: 3.5rem;
   min-height: 1.875rem;
-  border: var(--hairline) solid transparent;
+  padding: 0 6px;
+  border: 0;
   border-radius: var(--radius-1);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-umd);
+  font-weight: var(--weight-strong);
+  font-size: 0.8125rem;
+  letter-spacing: var(--tracking-umd);
+  white-space: nowrap;
 }
 
+.verdict::before {
+  content: "";
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* the red stays in the lamp: a wall of aired cells should not turn the panel red */
 .verdict[data-verdict="ON_AIR"] {
-  background: var(--on-air-soft);
-  color: var(--on-air);
+  color: var(--on-air-ink);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.verdict[data-verdict="ON_AIR"]::before {
+  background: var(--tally);
+  box-shadow: 0 0 6px var(--tally);
 }
 
 .verdict[data-verdict="HOLD_FOR_PRODUCER"] {
-  background: var(--held-soft);
   color: var(--held);
+  background: color-mix(in oklab, var(--held) 12%, var(--bg-sunken));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--held) 35%, transparent);
 }
 
 .verdict[data-verdict="KILLED"] {
-  background: var(--killed-soft);
   color: var(--killed);
+  background: color-mix(in oklab, var(--killed) 10%, var(--bg-sunken));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--killed) 30%, transparent);
+}
+
+.verdict[data-verdict="KILLED"]::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.verdict:hover {
+  filter: brightness(1.15);
 }
 
 .verdict[aria-pressed="true"] {
-  border-color: currentColor;
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.verdict[data-verdict="ON_AIR"][aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--fg);
 }
 
 .detail {

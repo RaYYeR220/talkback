@@ -84,7 +84,7 @@
 .cause {
   display: block;
   font-size: var(--text-2xs);
-  color: var(--accent);
+  color: var(--fg-muted);
   font-family: var(--font-mono);
 }
 

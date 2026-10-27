@@ -85,7 +85,7 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
 };
 
 export const VERDICT_SHORT: Record<Verdict, string> = {
-  ON_AIR: "AIR",
+  ON_AIR: "ON AIR",
   HOLD_FOR_PRODUCER: "HELD",
   KILLED: "KILL",
 };

@@ -47,7 +47,11 @@ function ConsoleBody() {
         </section>
 
         <div className={styles.grid}>
-          <section className={`panel ${styles.program}`} aria-labelledby="program-title">
+          <section
+            className={`panel ${styles.program}`}
+            aria-labelledby="program-title"
+            data-tally={selected && selected === state.rundown?.match_id ? "pgm" : undefined}
+          >
             <header className="panel-head">
               <h2 id="program-title">
                 Program <span className="faint">· {selected ? matchName(state, selected) : "no match"}</span>
