@@ -171,3 +171,29 @@ def test_streamed_lab_answers_are_sealed_too():
     texts, final = asyncio.run(go())
     assert "made-up" not in "".join(texts) and "made-up" not in final
     assert '"supported":false' in final.replace(" ", "")
+
+
+def test_seal_carries_what_the_simulator_ran_for_the_moment():
+    import json as _json
+    from types import SimpleNamespace
+
+    from agent_framework import AgentResponse, Message
+
+    from talkback.hosted.lab import SealResult
+    from talkback.schemas.models import Experiment
+
+    def exp(eid, moment, lo, hi):
+        return Experiment(id=eid, moment_id=moment, intervention={"type": "flip_event"}, n=120, metric="threat",
+                          baseline=0.1, counterfactual=0.14, effect=0.04, ci95=(lo, hi), seed=1)
+
+    backend = SimpleNamespace(results={"X-1": exp("X-1", "M-7", 0.02, 0.06), "X-2": exp("X-2", "M-8", -0.1, 0.1)})
+    ctx = SimpleNamespace(stream=False, result=None, messages=[_msg(
+        "Run: md-2026\nMoment shot at 56' in MD12-F01 (moment id M-7). The shot event is E-1.")])
+
+    async def call_next():  # the model names experiment kinds, not the ids the simulator returned
+        ctx.result = AgentResponse(messages=[Message(role="assistant", contents=[
+            '{"experiments": ["cancel_shot"], "conclusion": "it mattered", "supported": true}'])])
+
+    asyncio.run(SealResult(runs.RunCache(lambda r: backend)).process(ctx, call_next))
+    sealed = _json.loads(ctx.result.text)
+    assert [x["id"] for x in sealed["experiments"]] == ["X-1"] and sealed["supported"] is True

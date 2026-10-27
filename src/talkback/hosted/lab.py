@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Annotated
 
 from agent_framework import (
@@ -18,7 +19,7 @@ from agent_framework import (
 )
 from pydantic import Field
 
-from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, finalize
+from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, LabResult, finalize
 from talkback.gallery.llm import make_client
 from talkback.gallery.world import World
 from talkback.hosted.runs import RunCache, RunScope, current, default_run, prewarm, run_of
@@ -50,6 +51,16 @@ def remote_tools(backends: RunCache[LabBackend]) -> list:
     return [run_experiment]
 
 
+_MOMENT = re.compile(r"moment id ([^)\s]+)")
+
+
+def moment_of(messages) -> str | None:
+    for message in reversed(list(messages)):
+        if m := _MOMENT.search(message.text or ""):
+            return m.group(1)
+    return None
+
+
 class SealResult(AgentMiddleware):
     def __init__(self, backends: RunCache[LabBackend]):
         self.backends = backends
@@ -58,10 +69,10 @@ class SealResult(AgentMiddleware):
         await call_next()
         if context.result is None:
             return
-        run = run_of(context.messages)
+        run, moment = run_of(context.messages), moment_of(context.messages)
         if not context.stream:
             context.result = AgentResponse(messages=[Message(role="assistant", contents=[self._seal(
-                context.result.text, run)])])
+                context.result.text, run, moment)])])
             return
         # The Foundry host streams. The model's own words are read to the end and dropped; the caller gets one
         # update carrying the sealed result.
@@ -69,13 +80,23 @@ class SealResult(AgentMiddleware):
 
         async def sealed():
             answer = await inner.get_final_response()
-            text = self._seal(answer.text, run)
+            text = self._seal(answer.text, run, moment)
             yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": text}])
 
         context.result = ResponseStream(sealed(), finalizer=AgentResponse.from_updates)
 
-    def _seal(self, answer_text: str, run: str) -> str:
-        return finalize(answer_text, self.backends.get(run)).model_dump_json()
+    def _seal(self, answer_text: str, run: str, moment: str | None) -> str:
+        backend = self.backends.get(run)
+        result = finalize(answer_text, backend)
+        if not result.experiments and moment:
+            # The model may name experiment kinds rather than the ids it was given; what counts is what the
+            # simulator ran for this moment.
+            xs = [x for x in backend.results.values() if x.moment_id == moment]
+            if xs:
+                supported = any(x.metric == "threat" and is_supported(x.ci95) for x in xs)
+                result = LabResult(experiments=xs, conclusion="" if supported else "no clear effect",
+                                   supported=supported)
+        return result.model_dump_json()
 
 
 def load_backend(run_id: str) -> LabBackend:
