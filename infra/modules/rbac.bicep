@@ -33,7 +33,7 @@ param jobOperators principal[] = []
 
 var roleIds = {
   foundryUser: '53ca6127-db72-4b80-b1b0-d745d6d5456d'
-  cognitiveServicesUser: 'a97b65f3-24c7-4388-baec-2e87ef0bb6d4'
+  cognitiveServicesUser: 'a97b65f3-24c7-4388-baec-2e87135dc908'
   foundryAgentConsumer: 'eed3b665-ab3a-47b6-8f48-c9382fb1dad6'
   eventHubsDataSender: '2b629674-e913-4c01-ae53-ef4638d8f975'
   eventHubsDataReceiver: 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde'

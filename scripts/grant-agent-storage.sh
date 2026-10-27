@@ -7,19 +7,22 @@
 #
 # Needs: az login with rights to create role assignments (Owner on the subscription).
 set -euo pipefail
+export MSYS_NO_PATHCONV=1  # Git Bash on Windows would rewrite --scope /subscriptions/... into a file path
 
 service="${1:-lab}"
 key="AGENT_$(echo "$service" | tr '[:lower:]-' '[:upper:]_')_INSTANCE_IDENTITY_PRINCIPAL_ID"
-principal="$(azd env get-value "$key")"
+principal="$(azd env get-value "$key" | tr -d '')"
 if [ -z "$principal" ]; then
   echo "$key is empty; run 'azd deploy $service' first" >&2
   exit 1
 fi
 
+rg="$(azd env get-value AZURE_RESOURCE_GROUP 2>/dev/null || true)"
+[ -n "$rg" ] || rg="rg-$(azd env get-value AZURE_ENV_NAME)"
 scope="$(az storage account show \
   --name "$(azd env get-value STORAGE_ACCOUNT_NAME)" \
-  --resource-group "$(azd env get-value AZURE_RESOURCE_GROUP)" \
-  --query id -o tsv)"
+  --resource-group "$rg" \
+  --query id -o tsv | tr -d '')"
 
 # Storage Blob Data Reader
 az role assignment create \
