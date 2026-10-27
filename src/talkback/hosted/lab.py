@@ -13,7 +13,9 @@ import asyncio
 import json
 from typing import Annotated
 
-from agent_framework import Agent, AgentContext, AgentMiddleware, AgentResponse, Message, tool
+from agent_framework import (
+    Agent, AgentContext, AgentMiddleware, AgentResponse, AgentResponseUpdate, Message, ResponseStream, tool,
+)
 from pydantic import Field
 
 from talkback.gallery.agents.lab import INSTRUCTIONS, ExperimentKind, LabBackend, finalize
@@ -54,10 +56,25 @@ class SealResult(AgentMiddleware):
 
     async def process(self, context: AgentContext, call_next) -> None:
         await call_next()
-        if context.stream or context.result is None:
+        if context.result is None:
             return
-        sealed = finalize(context.result.text, self.backends.get(run_of(context.messages)))
-        context.result = AgentResponse(messages=[Message(role="assistant", contents=[sealed.model_dump_json()])])
+        run = run_of(context.messages)
+        if not context.stream:
+            context.result = AgentResponse(messages=[Message(role="assistant", contents=[self._seal(
+                context.result.text, run)])])
+            return
+        # The Foundry host streams. The model's own words are read to the end and dropped; the caller gets one
+        # update carrying the sealed result.
+        inner = context.result
+
+        async def sealed():
+            answer = await inner.get_final_response()
+            yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": self._seal(answer.text, run)}])
+
+        context.result = ResponseStream(sealed(), finalizer=AgentResponse.from_updates)
+
+    def _seal(self, answer_text: str, run: str) -> str:
+        return finalize(answer_text, self.backends.get(run)).model_dump_json()
 
 
 def load_backend(run_id: str) -> LabBackend:

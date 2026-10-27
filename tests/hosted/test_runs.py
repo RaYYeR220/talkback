@@ -142,3 +142,32 @@ def test_a_failed_download_leaves_nothing_cached(tmp_path, monkeypatch):
     with pytest.raises(ConnectionError):
         runstore._download("https://example.blob.core.windows.net", "md-9", tmp_path, ("world.json",))
     assert list(tmp_path.iterdir()) == []
+
+
+def test_streamed_lab_answers_are_sealed_too():
+    from types import SimpleNamespace
+
+    from agent_framework import AgentResponse, AgentResponseUpdate, ResponseStream
+
+    from talkback.hosted.lab import SealResult
+
+    async def model_says():
+        yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": '{"experiments": ["made-up"], '}])
+        yield AgentResponseUpdate(role="assistant", contents=[{"type": "text", "text": '"supported": true}'}])
+
+    ctx = SimpleNamespace(stream=True, messages=[_msg("Run: md-2026\nMoment shot")],
+                          result=None)
+
+    async def call_next():
+        ctx.result = ResponseStream(model_says(), finalizer=AgentResponse.from_updates)
+
+    seal = SealResult(runs.RunCache(lambda r: SimpleNamespace(results={})))
+
+    async def go():
+        await seal.process(ctx, call_next)
+        texts = [u.text async for u in ctx.result]
+        return texts, (await ctx.result.get_final_response()).text
+
+    texts, final = asyncio.run(go())
+    assert "made-up" not in "".join(texts) and "made-up" not in final
+    assert '"supported":false' in final.replace(" ", "")

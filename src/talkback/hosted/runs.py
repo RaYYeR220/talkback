@@ -57,11 +57,10 @@ class RunScope(AgentMiddleware):
         run = run_of(context.messages)
         if self.warm is not None:
             await asyncio.to_thread(self.warm, run)
-        token = _current.set(run)
-        try:
-            await call_next()
-        finally:
-            _current.reset(token)
+        # Not reset afterwards: a streamed run calls its tools after call_next() returns, and the value only lives
+        # in this request's task anyway.
+        _current.set(run)
+        await call_next()
 
 
 class RunCache(Generic[T]):
