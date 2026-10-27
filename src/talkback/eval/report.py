@@ -60,7 +60,8 @@ def _percentile(values: list[int], q: float) -> int | None:
     return s[max(0, math.ceil(q * len(s)) - 1)]
 
 
-def to_web(summary: dict, latencies_ms: list[int], generated_at: str) -> dict:
+def to_web(summary: dict, latencies_ms: list[int], generated_at: str,
+           seeds: tuple[int, ...] = (2031, 2032, 2033, 2034, 2035)) -> dict:
     """The scorecard the web Proof page reads: only what the evaluation measured."""
     systems = summary["systems"]
     present = [s for s in _WEB_SYSTEMS if s[0] in systems]
@@ -79,5 +80,5 @@ def to_web(summary: dict, latencies_ms: list[int], generated_at: str) -> dict:
                     for mid, field, label, unit, better, desc in _WEB_METRICS],
         "latency": {"description": "Moment spotted to line on air, Talkback only.",
                     "p50_ms": _percentile(latencies_ms, 0.5), "p95_ms": _percentile(latencies_ms, 0.95)},
-        "reproduce": ["uv run talkback eval-all --seeds 2026 2027 2028 2029 2030 --speed 6"],
+        "reproduce": [f"uv run talkback eval-all --seeds {' '.join(str(s) for s in seeds)} --speed 6"],
     }

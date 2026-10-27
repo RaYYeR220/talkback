@@ -20,7 +20,12 @@ interface Summary {
   note?: string;
   generated_at: string | null;
   run: string | null;
-  setup?: { matchdays?: number; matches_per_matchday?: number; seeds?: string; sealed_key_sha256?: string };
+  setup?: {
+    matchdays?: number;
+    matches_per_matchday?: number;
+    seeds?: string | (string | number)[];
+    sealed_key_sha256?: string | (string | null)[];
+  };
   systems: { id: string; label: string; description: string }[];
   metrics: Metric[];
   clearance?: {
@@ -40,6 +45,12 @@ function fmt(m: Metric, v: number | null | undefined) {
 function usd(v: number | null | undefined) {
   if (v === null || v === undefined) return "pending";
   return `$${v.toFixed(2)}`;
+}
+
+/** A field the scorecard writes either as one string or as a list. */
+function listOf(v: string | (string | number | null)[] | undefined): string[] {
+  if (v == null) return [];
+  return (Array.isArray(v) ? v : [v]).filter((x) => x != null && x !== "").map(String);
 }
 
 export function ProofView({ src = "/eval/summary.json" }: { src?: string }) {
@@ -227,8 +238,21 @@ export function ProofView({ src = "/eval/summary.json" }: { src?: string }) {
         {data.setup ? (
           <p className="muted">
             {data.setup.matchdays ?? "–"} matchdays × {data.setup.matches_per_matchday ?? "–"} matches, seeds{" "}
-            {data.setup.seeds ?? "–"}. Sealed answer key SHA-256:{" "}
-            <code className="mono">{data.setup.sealed_key_sha256 ?? "–"}</code>.
+            {listOf(data.setup.seeds).join(", ") || "–"}. Sealed answer keys (SHA-256):
+          </p>
+        ) : null}
+        {data.setup && listOf(data.setup.sealed_key_sha256).length ? (
+          <ul className={styles.hashes}>
+            {listOf(data.setup.sealed_key_sha256).map((h) => (
+              <li key={h}>
+                <code className="mono">{h}</code>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {data.setup && !listOf(data.setup.sealed_key_sha256).length ? (
+          <p className="muted">
+            <code className="mono">–</code>.
           </p>
         ) : null}
         {data.reproduce?.length ? (

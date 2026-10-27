@@ -269,3 +269,16 @@
     grid-row: 2;
   }
 }
+
+.hashes {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.hashes code {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
