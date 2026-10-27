@@ -134,7 +134,12 @@ export function ProducerQueue() {
           The producer seat opens during a live matchday. In a replay the holds were already decided when the run was
           recorded, so the buttons stay off. Unanswered holds expire and do not air.
         </p>
-      ) : null}
+      ) : (
+        <p className={styles.seat}>
+          Public demo seat: anyone watching this live run can approve or reject, and the ledger records that the
+          decision came from here. Unanswered holds expire and do not air; the kids feed never waits for a producer.
+        </p>
+      )}
       {holds.length ? (
         <ul className={styles.list}>
           {holds.map((h) => (

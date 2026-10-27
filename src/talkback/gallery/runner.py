@@ -309,13 +309,20 @@ class MatchdayRunner:
         if run.bundle is not None:
             self._air(run.bundle)
 
-    async def decide(self, moment_id: str, decision: dict[str, str]) -> bool:
+    async def decide(self, moment_id: str, decision: dict[str, str], seat: str = "producer") -> bool:
+        """Resolve a hold; `seat` says who decided (a keyed producer, the public demo seat, the timeout)."""
         entry = self.holds.pop(moment_id, None)
         if entry is None:
             return False
         run = await answer_hold(entry[0], decision)
-        self.bc.publish("hold_resolved", self.sim_t, {"id": moment_id, "decision": decision})
+        self.bc.publish("hold_resolved", self.sim_t, {"id": moment_id, "decision": decision, "seat": seat})
         if run.bundle is not None:
+            for cue in run.bundle.cues:
+                for t, v in list(cue.verdicts.items()):
+                    if any(r.startswith("producer: ") for r in v.reasons):
+                        cue.verdicts[t] = v.model_copy(update={"reasons": [
+                            f"{r} ({seat})" if r.startswith("producer: ") else r for r in v.reasons]})
+            run.bundle.status["producer"] = f"decided ({seat})"
             self._air(run.bundle)
         return True
 
@@ -323,7 +330,7 @@ class MatchdayRunner:
         now = time.monotonic()
         for mid, (run, deadline) in list(self.holds.items()):
             if now >= deadline:
-                await self.decide(mid, {h["cue_id"]: "expired" for h in run.hold.holds})
+                await self.decide(mid, {h["cue_id"]: "expired" for h in run.hold.holds}, seat="no answer in time")
 
     def _air(self, bundle) -> None:
         m = self.matches[bundle.moment.match_id]

@@ -279,3 +279,11 @@ def test_sensitive_topic_added_by_the_translation_is_held(packs, safety):
     verdicts, out = run(gate, c, {"uk": (c.text, "en"), "br": ("Mensah sente dores e volta", "pt")})
     assert verdicts == {"uk": ON, "br": HOLD}
     assert "sensitive: injury" in out.verdicts["br"].reasons
+
+
+def test_minors_safe_feed_never_waits_for_a_producer(packs, safety):
+    gate = Gate({t: packs[t] for t in ("uk", "kids")}, safety)
+    text = "The referee waved play on"
+    verdicts, out = run(gate, cue(text), {"uk": (text, "en"), "kids": (text, "en")})
+    assert verdicts == {"uk": HOLD, "kids": KILL}
+    assert any(r.startswith("minors-safe:") for r in out.verdicts["kids"].reasons)

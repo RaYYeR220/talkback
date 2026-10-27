@@ -118,3 +118,32 @@ def test_broadcaster_catch_up_is_bounded_and_keeps_the_run_first():
     assert msgs[0]["kind"] == "run"
     cues = [m for m in msgs if m["kind"] == "cue"]
     assert len(cues) == Broadcaster.KEEP_PER_KIND and cues[-1]["data"]["id"] == "Q-999"
+
+
+def test_a_producer_key_locks_the_seat(client, monkeypatch):
+    c, svc = client
+    monkeypatch.setattr(svc, "PRODUCER_KEY", "s3cret")
+    body = {"decisions": {"Q-1": "approve"}}
+    assert c.post("/api/holds/M-1", json=body).status_code == 401
+    assert c.post("/api/holds/M-1", json=body, headers={"X-Producer-Key": "wrong"}).status_code == 401
+    assert c.post("/api/holds/M-1", json=body, headers={"X-Producer-Key": "s3cret"}).status_code == 409  # no live run
+
+
+def test_who_decided_is_recorded(client):
+    import asyncio
+    from types import SimpleNamespace
+
+    c, svc = client
+    seen = {}
+
+    async def decide(moment_id, decisions, seat):
+        seen.update(moment_id=moment_id, seat=seat)
+        return True
+
+    svc.gallery.runner = SimpleNamespace(decide=decide, sim_t=0)
+    try:
+        assert c.post("/api/holds/M-1", json={"decisions": {"Q-1": "reject"}}).json() == {"ok": True}
+    finally:
+        svc.gallery.runner = None
+    assert seen == {"moment_id": "M-1", "seat": "public demo seat"}
+    assert c.get("/api/health").json()["producer_seat"] == "public demo seat"

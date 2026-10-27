@@ -98,7 +98,12 @@ class Gate:
                 verdict = Verdict.KILLED
                 reasons.append(note or "content-safety: rejected")
             desk = apply_pack(pack, text, lang, cue, pack_ctx)
-            return TerritoryVerdict(territory=territory, verdict=worst(verdict, desk.verdict),
-                                    reasons=list(dict.fromkeys(reasons + desk.reasons)), text=text)
+            final, reasons = worst(verdict, desk.verdict), reasons + desk.reasons
+            if pack.minors_safe and final is Verdict.HOLD_FOR_PRODUCER:
+                # nobody approves a sensitive line onto a minors-safe feed: if it needs a producer, it does not air
+                final = Verdict.KILLED
+                reasons.append("minors-safe: a line that needs a producer does not air on this feed")
+            return TerritoryVerdict(territory=territory, verdict=final, reasons=list(dict.fromkeys(reasons)),
+                                    text=text)
         except Exception as exc:
             return self._killed(territory, cue, localized, [f"error: {type(exc).__name__}"])

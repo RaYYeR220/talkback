@@ -11,12 +11,13 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import secrets
 import time
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -36,6 +37,9 @@ LIVE_IDLE_S = float(os.environ.get("TALKBACK_LIVE_IDLE_S", "180"))
 # ... and no live run, however it is fed, holds the console for longer than this.
 LIVE_MAX_S = float(os.environ.get("TALKBACK_LIVE_MAX_S", str(75 * 60)))
 REPLAY_SPEED = float(os.environ.get("TALKBACK_REPLAY_SPEED", "10"))
+# Set it to lock the producer seat behind a key (X-Producer-Key). Without it the seat is a public demo seat:
+# anyone watching a live run may approve or reject its holds, and every decision is marked as made there.
+PRODUCER_KEY = os.environ.get("TALKBACK_PRODUCER_KEY") or None
 # How long the finished replay stays on screen before it starts again.
 REPLAY_HOLD_S = float(os.environ.get("TALKBACK_REPLAY_HOLD_S", "90"))
 
@@ -44,6 +48,10 @@ class StartRequest(BaseModel):
     # At 2x a matchday's feed takes about 49 minutes, inside the generator job's one-hour limit; above 20x the
     # token rate outruns the budget.
     speed: float | None = Field(default=None, ge=2, le=20)
+
+
+def producer_seat() -> str:
+    return "producer key" if PRODUCER_KEY else "public demo seat"
 
 
 def cors_origins() -> list[str]:
@@ -270,7 +278,7 @@ ograf.mount(app, prefix="/ograf/v1", base="/ograf")
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "mode": gallery.mode, "run": gallery.run_id}
+    return {"ok": True, "mode": gallery.mode, "run": gallery.run_id, "producer_seat": producer_seat()}
 
 
 @app.get("/api/state")
@@ -317,13 +325,15 @@ def holds() -> dict:
 
 
 @app.post("/api/holds/{moment_id}")
-async def decide(moment_id: str, d: Decision) -> dict:
+async def decide(moment_id: str, d: Decision, x_producer_key: str | None = Header(default=None)) -> dict:
+    if PRODUCER_KEY and not secrets.compare_digest((x_producer_key or "").encode(), PRODUCER_KEY.encode()):
+        raise HTTPException(401, "the producer seat needs X-Producer-Key")
     if gallery.runner is None:
         raise HTTPException(409, "the producer seat is only open during a live matchday")
     bad = {v for v in d.decisions.values() if v not in ("approve", "reject")}
     if bad:
         raise HTTPException(422, f"decisions must be approve or reject, got {sorted(bad)}")
-    if not await gallery.runner.decide(moment_id, d.decisions):
+    if not await gallery.runner.decide(moment_id, d.decisions, seat=producer_seat()):
         raise HTTPException(404, "no such hold (it may have expired)")
     return {"ok": True}
 
